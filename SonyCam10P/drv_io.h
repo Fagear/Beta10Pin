@@ -50,6 +50,7 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define RLY_OFF			(RLY_PORT&=~RLY_BIT)
 
 // NV-180 serial link.
+#define VTR_SER_INT		PCINT2_vect						// Interrupt vector alias
 #define VTR_SER_PORT	PORTD
 #define VTR_SER_DIR		DDRD
 #define VTR_SER_SRC		PIND
@@ -57,6 +58,12 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define VTR_SDAT_BIT	(1<<0)
 #define VTR_SCLK_STATE	(VTR_SER_SRC&VTR_SCLK_BIT)
 #define VTR_SDAT_STATE	(VTR_SER_SRC&VTR_SDAT_BIT)
+#define VTR_SDAT_IN		(VTR_SER_DIR&=~VTR_SDAT_BIT)
+#define VTR_SDAT_OUT	(VTR_SER_DIR|=VTR_SDAT_BIT)
+#define VTR_SDAT_SET0	(VTR_SER_PORT&=~VTR_SDAT_BIT)
+#define VTR_SDAT_SET1	(VTR_SER_PORT|=VTR_SDAT_BIT)
+#define VTR_SER_CONFIG1	(PCICR|=(1<<PCIE2))
+#define VTR_SER_CONFIG2	(PCMSK2|=(1<<PCINT17))
 // Video signal direction input from 10-pin VTR connector.
 #define VTR_VID_PORT	PORTB
 #define VTR_VID_DIR		DDRB
@@ -108,11 +115,26 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define CAM_VID_PB		(CAM_VID_PORT|=CAM_VID_PIN)
 #define CAM_VID_REC		(CAM_VID_PORT&=~CAM_VID_PIN)
 
+// Debug outputs.
+#define DBG_PORT		PORTB
+#define DBG_DIR			DDRB
+#define DBG_1_PIN		(1<<5)
+#define DBG_2_PIN		(1<<4)
+#define DBG_3_PIN		(1<<3)
+#define DBG_4_PIN		(1<<2)
+#define DBG_1_ON		(DBG_PORT|=DBG_1_PIN)
+#define DBG_1_OFF		(DBG_PORT&=~DBG_1_PIN)
+#define DBG_2_ON		(DBG_PORT|=DBG_2_PIN)
+#define DBG_2_OFF		(DBG_PORT&=~DBG_2_PIN)
+#define DBG_3_ON		(DBG_PORT|=DBG_3_PIN)
+#define DBG_3_OFF		(DBG_PORT&=~DBG_3_PIN)
+#define DBG_PWM			OCR1B
+
 // Power supply ADC inputs.
-#define ADC_INT			ADC_vect
+#define ADC_INT			ADC_vect						// Interrupt vector alias
 #define ADC_CONFIG1		ADMUX = (0<<REFS0)|(0<<REFS1)|(1<<ADLAR)|(0<<MUX0)|(0<<MUX1)|(0<<MUX2)|(0<<MUX3)
 #define ADC_CONFIG2		ADCSRA = (1<<ADEN)|(1<<ADIE)|(1<<ADPS0)|(0<<ADPS1)|(1<<ADPS2)
-#define ADC_CONFIG3		DIDR0 |= ((1<<ADC0D)|(1<<ADC1D))
+#define ADC_PWR_SAVE	DIDR0 |= ((1<<ADC0D)|(1<<ADC1D))
 #define ADC_START		ADCSRA |= (1<<ADSC)
 #define ADC_MUX_RD		(ADMUX&((1<<MUX0)|(1<<MUX1)|(1<<MUX2)|(1<<MUX3)))
 #define ADC_MUX_CLR		ADMUX &= ~((1<<MUX0)|(1<<MUX1)|(1<<MUX2)|(1<<MUX3))
@@ -136,23 +158,35 @@ Hardware defines (pseudo-HAL) and setup routines.
 // System timer setup.
 #define SYST_INT			TIMER2_COMPA_vect			// Interrupt vector alias
 #define SYST_CONFIG1		TCCR2A=(1<<WGM21)			// CTC mode (clear on compare with OCR)
-#define SYST_CONFIG2		OCR2A=124					// Cycle clock: INclk/(1+124), 1000 Hz cycle
+#define SYST_CONFIG2		TCCR2B=0		
+#define SYST_CONFIG3		OCR2A=124					// Cycle clock: clk/(1+124), 1000 Hz cycle
 #define SYST_EN_INTR		TIMSK2|=(1<<OCIE2A)			// Enable interrupt
 #define SYST_DIS_INTR		TIMSK2&=~(1<<OCIE2A)		// Disable interrupt
-#define SYST_START			TCCR2B|=(1<<CS21)			// Start timer with clk/8 clock (125 kHz)
+#define SYST_START			TCCR2B|=(1<<CS22)			// Start timer with clk/64 clock (125 kHz)
 #define SYST_STOP			TCCR2B&=~((1<<CS20)|(1<<CS21)|(1<<CS22))	// Stop timer
 #define SYST_DATA_8			TCNT2						// Count register
 #define SYST_RESET			SYST_DATA_8=0				// Reset count
 
+// Serial timer setup.
+#define SERT_INT			TIMER0_OVF_vect				// Interrupt vector alias
+#define SERT_CONFIG1		TCCR0A=0					// Normal mode
+#define SERT_CONFIG2		TCCR0B=0
+#define SERT_EN_INTR		TIMSK0|=(1<<TOIE0)			// Enable interrupt
+#define SERT_START			TCCR0B|=((1<<CS01)|(1<<CS00))				// Start timer with clk/64 clock (125 kHz)
+#define SERT_STOP			TCCR0B&=~((1<<CS00)|(1<<CS01)|(1<<CS02))	// Stop timer
+#define SERT_DATA_8			TCNT0						// Count register
+#define SERT_RESET			SERT_DATA_8=0				// Reset count
+
 // Power consumption optimizations.
 #define PWR_COMP_OFF		ACSR|=(1<<ACD)
-#define PWR_ADC_OFF			PRR|=(1<<PRADC)
-#define PWR_T0_OFF			PRR|=(1<<PRTIM0)
-#define PWR_T1_OFF			PRR|=(1<<PRTIM1)
-#define PWR_T2_OFF			PRR|=(1<<PRTIM2)
-#define PWR_I2C_OFF			PRR|=(1<<PRTWI)
-#define PWR_SPI_OFF			PRR|=(1<<PRSPI)
-#define PWR_UART_OFF		PRR|=(1<<PRUSART0)
+#define PWR_SAVE			PRR
+#define PWR_ADC_OFF			(1<<PRADC)
+#define PWR_T0_OFF			(1<<PRTIM0)
+#define PWR_T1_OFF			(1<<PRTIM1)
+#define PWR_T2_OFF			(1<<PRTIM2)
+#define PWR_I2C_OFF			(1<<PRTWI)
+#define PWR_SPI_OFF			(1<<PRSPI)
+#define PWR_UART_OFF		(1<<PRUSART0)
 
 //-------------------------------------- IO initialization.
 inline void HW_init(void)
@@ -168,28 +202,42 @@ inline void HW_init(void)
 	CAM_REC_PORT |= CAM_REC_PIN;	CAM_REC_DIR &= ~CAM_REC_PIN;	// Camera record button input.
 	CAM_RR_PORT |= CAM_RR_PIN;		CAM_RR_DIR &= ~CAM_RR_PIN;		// Camera RR button input.
 	VTR_VID_PORT |= VTR_VID_BIT;	VTR_VID_DIR &= ~VTR_VID_BIT;	// Video signal direction input.
-	VTR_SER_PORT |= (VTR_SDAT_BIT|VTR_SCLK_BIT);	VTR_SER_DIR &= ~(VTR_SDAT_BIT|VTR_SCLK_BIT);	// Serial link pins.
-	ADC_PORT &= ~(ADC_12V_PIN|ADC_CAM_PIN);			ADC_DIR &= ~(ADC_12V_PIN|ADC_CAM_PIN);			// ADC power supply measurement inputs.
+	VTR_SER_PORT |= VTR_SDAT_BIT;	VTR_SER_DIR &= ~VTR_SDAT_BIT;	// Serial link data pin.
+	VTR_SER_PORT |= VTR_SCLK_BIT;	VTR_SER_DIR &= ~VTR_SCLK_BIT;	// Serial link clock pin input.
+	ADC_PORT &= ~ADC_12V_PIN;		ADC_DIR &= ~ADC_12V_PIN;		// ADC input power supply measurement pin.
+	ADC_PORT &= ~ADC_CAM_PIN;		ADC_DIR &= ~ADC_CAM_PIN;		// ADC camera supply measurement pin.
 	
 	// System timing.
-	SYST_CONFIG1;
-	SYST_CONFIG2;
+	SYST_CONFIG1; SYST_CONFIG2; SYST_CONFIG3;
 	SYST_RESET;
 	SYST_EN_INTR;
 	
-	// Debug PWM.
-	TCCR2A = (1<<COM2A1)|(1<<WGM21)|(1<<WGM20);
-	TCCR2B = (1<<CS20);
-	TCNT2 = 0;
-	OCR2A = 0;
-	DDRB |= (1<<3);
-	DDRB |= (1<<4);
+	// Serial link timing.
+	SERT_CONFIG1; SERT_CONFIG2;
+	SERT_RESET;
+	SERT_EN_INTR;
 	
 	// ADC configuration.
-	ADC_CONFIG1; ADC_CONFIG2; ADC_CONFIG3;
+	ADC_CONFIG1; ADC_CONFIG2;
+	ADC_PWR_SAVE;
+	
+	// Serial link interrupts.
+	VTR_SER_CONFIG1; VTR_SER_CONFIG2;
+
+	// Debug outputs.
+	DBG_PORT &= ~(DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
+	DBG_DIR |= (DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
+
+	// Debug PWM.
+	DBG_PORT &= ~DBG_4_PIN;		DBG_DIR |= DBG_4_PIN;				// OC1B output
+	TCNT1 = 0;
+	OCR1B = 0;
+	TCCR1A = (1<<COM1B1)|(1<<WGM10);								// Fast non-inverting 8-bit PWM
+	TCCR1B = (1<<WGM12)|(0<<CS12)|(0<<CS11)|(1<<CS10);				// Start timer with clk/1 clock (8 MHz), 31.25 kHz cycle
 	
 	// Turn off unused modules for power saving.
-	PWR_COMP_OFF; PWR_I2C_OFF; PWR_SPI_OFF; PWR_UART_OFF; PWR_T0_OFF; PWR_T1_OFF;
+	PWR_COMP_OFF;
+	PWR_SAVE |= (PWR_I2C_OFF|PWR_SPI_OFF|PWR_UART_OFF/*|PWR_T0_OFF|PWR_T1_OFF*/);
 }
 
 #endif /* DRV_IO_H_ */
