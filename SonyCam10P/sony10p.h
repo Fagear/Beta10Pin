@@ -31,10 +31,10 @@ Created: 2024-04-21
 #include "drv_io.h"
 
 // Flags for [u8i_interrupts] and [u8_buf_interrupts].
-#define INTR_SYS_TICK		(1<<0)
-#define INTR_READ_ADC		(1<<1)
-#define INTR_TALLY			(1<<2)
-#define INTR_SERIAL_DET		(1<<3)
+#define INTR_SYS_TICK		(1<<0)	// System timing
+#define INTR_READ_ADC		(1<<1)	// ADC result is ready
+#define INTR_SERIAL			(1<<2)	// Detected serial link with NV-180
+#define INTR_TALLY			(1<<3)	// Detected tally impulse on serial clock
 
 // Flags for [u8_tasks].
 #define	TASK_500HZ			(1<<0)	// 500 Hz event
@@ -42,20 +42,26 @@ Created: 2024-04-21
 #define	TASK_2HZ			(1<<2)	// 2 Hz event
 #define	TASK_SLOW_BLINK		(1<<3)	// Indicator slow blink source
 #define	TASK_FAST_BLINK		(1<<4)	// Indicator fast blink source
-#define	TASK_CAMERA_OFF		(1<<5)	// Camera is not connected or is in power save mode
-#define	TASK_LOW_BATT		(1<<6)	// Incoming power has too low voltage
+#define	TASK_TIME_STBY		(1<<5)	// Standby trigger by timeout
+
+// Flags for [u8_state].
+#define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
+#define	STATE_CAM_OFF		(1<<1)	// Camera is not connected or is in power save mode
+#define	STATE_LOW_BATT		(1<<2)	// Incoming power has too low voltage
+#define	STATE_SERIAL_DET	(1<<3)	// Serial link present
 
 // Voltage thresholds.
 enum
 {
-	VIN_LOW_BATT	= 172,			// 11.0 V
+	VIN_LOW_BATT	= 80,			// Input voltage 11.0 V
+	VIN_OFF			= 20,			// Input voltage 9.5 V
+	VD_CAM_ON		= 43,			// Voltage difference for detected camera ON (35...59 % duty of 8-bit)
 };
 
 // Flags for [u8_inputs].
 #define	LINP_VTR_PB			(1<<0)	// VTR is in playback mode
 #define	LINP_CAM_REC		(1<<1)	// Camera REC button was pressed
 #define	LINP_CAM_RR			(1<<2)	// Camera RR button was pressed
-#define	LINP_REC_LOCK		(1<<3)	// Record command lock (for impulse trigger)
 
 // Flags for [u8_outputs].
 #define	OUT_RLY_ON			(1<<0)	// Video selection relay is energized
@@ -67,15 +73,35 @@ enum
 // Timeouts.
 enum
 {
+	TIME_STB_PAUSE	= 60,			// 30 s delay before going into standby from paused recording
+	TIME_STB_IDLE	= 120,			// 60 s delay before going into standby from idle/stop
 	TIME_STARTUP	= 250,			// 500 ms startup delay
 	TIME_VTR_PB		= 200,			// 400 ms delay between playback/record switching
 	TIME_CAM_REC	= 150,			// 300 ms delay for detecting triggered record signal
-	TIME_SER_CLK	= 12,			// 96 us maximum time between falling edges in single byte transmittion
+	TIME_CAM_RR		= 250,			// 500 ms delay for transition between review and record pause
+	TIME_CMD		= 100,			// 200 ms duration on the new command to the VTR
+	TIME_SER_CLK	= 12,			// 96 us maximum time between falling edges in single byte transmission
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
-	TIME_SER_MAX	= 250,			// marker for "timer has overflown and stopped"
+	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 };
 
-// Serial commands.
+#define	SER_BYTE_LEN		8		// Number of bits in a byte
+#define	SER_LAST_BIT		(SER_BYTE_LEN-1)
+
+// Byte offsets in one transmission consisting of [SER_PACK_LEN] bytes.
+enum
+{
+	SER_CAM2VTR_OFS,				// Command from camera to VTR
+	SER_TUN2VTR_OFS,				// Command from tuner/timer to VTR
+	SER_REM2VTR_OFS,				// Command from wired remote to VTR
+	SER_MN2UPD_OFS,					// Mode data from tape transport IC (MN1534) to display/logic IC (uPD7503)
+	SER_VTR2CAM_DISP_OFS,			// VTR to camera display information (counter, battery, remote switch)
+	SER_VTR2CAM_CNT1_OFS,			// VTR to camera tape counter or battery information, part 1
+	SER_VTR2CAM_CNT2_OFS,			// VTR to camera tape counter or battery information, part 2
+	SER_PACK_LEN					// Number of bytes in single serial transmission 
+};
+
+// Serial commands (from devices like camera to VTR).
 enum
 {
 	SCMD_STOP		= 0b00000000,	// Stop transport
@@ -92,11 +118,38 @@ enum
 	SCMD_SPD_DN		= 0b00101111,	// Step speed down for slow playback
 	SCMD_STBY		= 0b10010110,	// Stand by
 	SCMD_RCPB		= 0b10011010,	// Select record/playback
-	SCMD_NODEV		= 0b11111111,	// No device (camera) is present
+	SCMD_IDLE		= 0b11111111,	// No command
 };
 
-#define	SER_PACK_LEN		7		// Number of bytes in single serial transmittion 
-#define	SER_BYTE_LEN		8		// Number of bits in a byte
-#define	SER_LAST_BIT		(SER_BYTE_LEN-1)
+// Values for [SER_VTR2CAM_DISP_OFS].
+enum
+{
+	SDISP_CNTR_M	= 0b01010000,	// High nibble for tape counter with "M"(emory) mark ON transmission
+	SDISP_CNTR		= 0b00000000,	// High nibble for tape counter no "M"(emory) mark transmission
+	SDISP_BATT		= 0b11110000,	// High nibble for battery level transmission
+	SDISP_REM_ON	= 0b00000000,	// Low nibble for camera remote switch ON
+	SDISP_REM_OFF	= 0b00000101,	// Low nibble for camera remote switch OFF
+};
+
+// Bit flags for [SER_MN2UPD_OFS].
+enum
+{
+	STTR_REC_INH	= (1<<7),		// Record inhibit switch is active
+	STTR_LN_STOP	= 0b00000000,	// Low nibble for STOP
+	STTR_LN_EJECT	= 0b00000001,	// Low nibble for EJECT
+	STTR_LN_REW		= 0b00000010,	// Low nibble for REWIND
+	STTR_LN_FF		= 0b00000011,	// Low nibble for FAST FORWARD
+	STTR_LN_REVIEW	= 0b00000100,	// Low nibble for SEARCH REVERSE
+	STTR_LN_CUE		= 0b00000101,	// Low nibble for SEARCH FORWARD
+	STTR_LN_STBY	= 0b00000111,	// Low nibble for STAND-BY
+	STTR_LN_PLAY	= 0b00001000,	// Low nibble for PLAY
+	STTR_LN_STILL	= 0b00001001,	// Low nibble for STILL
+	STTR_LN_REC		= 0b00001010,	// Low nibble for RECORD
+	STTR_LN_PAUSE	= 0b00001011,	// Low nibble for PAUSE
+	STTR_LN_ADUB	= 0b00001100,	// Low nibble for AUDIO DUB
+	STTR_LN_ADUBP	= 0b00001101,	// Low nibble for AUDIO DUB PAUSE
+	STTR_LN_VADD	= 0b00001110,	// Low nibble for VIDEO ADD
+	STTR_LN_VADDP	= 0b00001111,	// Low nibble for VIDEO ADD PAUSE
+};
 
 #endif /* SONY10P_H_ */
