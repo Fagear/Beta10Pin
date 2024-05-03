@@ -25,12 +25,7 @@ Defines/switches for configuring compile-time options.
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-// Put CRC table into ROM instead of RAM.
-//#define CRC8_ROM_DATA
-
-//#define SETTINGS_SIZE		11		// Number of bytes for full [settings_data] union
-
-// Set target size of saving/restoring block for EEPROM driver.
-//#define EEPROM_TARGET_SIZE	SETTINGS_SIZE
+// Allow standby operations
+#define EN_STANDBY
 
 #endif /* CONFIG_H_ */

@@ -34,21 +34,24 @@ Created: 2024-04-21
 #define INTR_SYS_TICK		(1<<0)	// System timing
 #define INTR_READ_ADC		(1<<1)	// ADC result is ready
 #define INTR_SERIAL			(1<<2)	// Detected serial link with NV-180
-#define INTR_TALLY			(1<<3)	// Detected tally impulse on serial clock
+#define INTR_RX				(1<<3)	// Serial transmission finished
+#define INTR_TALLY			(1<<4)	// Tally signal in Serial transmission 
 
 // Flags for [u8_tasks].
 #define	TASK_500HZ			(1<<0)	// 500 Hz event
 #define	TASK_5HZ			(1<<1)	// 5 Hz event
 #define	TASK_2HZ			(1<<2)	// 2 Hz event
-#define	TASK_SLOW_BLINK		(1<<3)	// Indicator slow blink source
+#define	TASK_BATT_BLINK		(1<<3)	// Low battery blink
 #define	TASK_FAST_BLINK		(1<<4)	// Indicator fast blink source
-#define	TASK_TIME_STBY		(1<<5)	// Standby trigger by timeout
+#define	TASK_SLOW_BLINK		(1<<5)	// Indicator slow blink source
+#define	TASK_TIME_STBY		(1<<6)	// Standby trigger by timeout
 
 // Flags for [u8_state].
 #define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
 #define	STATE_CAM_OFF		(1<<1)	// Camera is not connected or is in power save mode
 #define	STATE_LOW_BATT		(1<<2)	// Incoming power has too low voltage
 #define	STATE_SERIAL_DET	(1<<3)	// Serial link present
+#define	STATE_REC_INHIBIT	(1<<4)	// Recording is inhibited
 
 // Voltage thresholds.
 enum
@@ -85,6 +88,18 @@ enum
 	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 };
 
+// Logic states for operating with serial link.
+enum
+{
+	LST_STOP,						// Initial state before any record or if errored out of record mode
+	LST_INH_CHECK,					// Record commanded from camera, checking if it is possible
+	LST_REC_RDY,					// Recording granted, indicating, no actual recording
+	LST_REC_PAUSE,					// Record paused
+	LST_RECORD,						// Recording
+	LST_REC_PWRSV,					// Record paused, VTR put in standby to preserve energy
+	LST_ERROR,						// Errored out of normal operation (temporary mode)
+};
+
 #define	SER_BYTE_LEN		8		// Number of bits in a byte
 #define	SER_LAST_BIT		(SER_BYTE_LEN-1)
 
@@ -118,7 +133,7 @@ enum
 	SCMD_SPD_DN		= 0b00101111,	// Step speed down for slow playback
 	SCMD_STBY		= 0b10010110,	// Stand by
 	SCMD_RCPB		= 0b10011010,	// Select record/playback
-	SCMD_IDLE		= 0b11111111,	// No command
+	SCMD_IDLE		= 0b11111111,	// No command (three in a row and VTR switches clock off)
 };
 
 // Values for [SER_VTR2CAM_DISP_OFS].
@@ -135,6 +150,8 @@ enum
 enum
 {
 	STTR_REC_INH	= (1<<7),		// Record inhibit switch is active
+	STTR_LN_MASK	= 0x0F,			// Mask for the low nibble
+	STTR_HN_MASK	= 0xF0,			// Mask for the high nibble
 	STTR_LN_STOP	= 0b00000000,	// Low nibble for STOP
 	STTR_LN_EJECT	= 0b00000001,	// Low nibble for EJECT
 	STTR_LN_REW		= 0b00000010,	// Low nibble for REWIND
@@ -150,6 +167,17 @@ enum
 	STTR_LN_ADUBP	= 0b00001101,	// Low nibble for AUDIO DUB PAUSE
 	STTR_LN_VADD	= 0b00001110,	// Low nibble for VIDEO ADD
 	STTR_LN_VADDP	= 0b00001111,	// Low nibble for VIDEO ADD PAUSE
+	STTR_HN_S_STOP	= 0b00000000,	// High nibble for stable mechanical STOP (with a tape inside)
+	STTR_HN_S_FAST	= 0b00010000,	// High nibble for stable mechanical EJECT/STOP (with no tape)/REWIND/FAST FORWARD
+	STTR_HN_P_STOP	= 0b00100000,	// High nibble for moving to STOP
+	STTR_HN_P_PLAY	= 0b00110000,	// High nibble for moving to PLAY/SLOW/SEARCH/STILL
+	STTR_HN_M_PLAY	= 0b01000000,	// High nibble for moving to PLAY (no video output yet)/REC (going to/from PAUSE)
+	STTR_HN_S_RECP	= 0b01010000,	// High nibble for stable mechanical REC+PAUSE
+	STTR_HN_S_REC	= 0b01100000,	// High nibble for stable mechanical RECORD
+	STTR_HN_S_PLAY	= 0b01110000,	// High nibble for stable mechanical PLAY/SLOW/SEARCH/STILL
 };
+
+void load_serial_cmd(uint8_t new_cmd);
+int main(void);
 
 #endif /* SONY10P_H_ */

@@ -215,7 +215,11 @@ inline void HW_init(void)
 	// Init outputs.
 	RLY_PORT &= ~RLY_BIT;			RLY_DIR |= RLY_BIT;				// Video switching relay control.
 	VTR_REC_PORT &= ~VTR_REC_BIT;	VTR_REC_DIR |= VTR_REC_BIT;		// VTR record pause control.
+#ifdef EN_STANDBY
 	VTR_STBY_PORT &= ~VTR_STBY_BIT;	VTR_STBY_DIR |= VTR_STBY_BIT;	// VTR standby control.
+#else
+	VTR_STBY_PORT &= ~VTR_STBY_BIT;	VTR_STBY_DIR &= ~VTR_STBY_BIT;	// Disabled standby control.
+#endif /* EN_STANDBY */
 	CAM_LED_PORT &= ~CAM_LED_PIN;	CAM_LED_DIR |= CAM_LED_PIN;		// Camera record/battery indicator control.
 	CAM_VID_PORT &= ~CAM_VID_PIN;	CAM_VID_DIR |= CAM_VID_PIN;		// Camera viewfinder video select control.
 	
