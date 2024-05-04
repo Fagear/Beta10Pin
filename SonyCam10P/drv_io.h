@@ -174,7 +174,7 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define WDT_SW_OFF			WDTCSR=0x00
 #define WDT_FLUSH_REASON	MCUSR=(0<<WDRF)|(0<<BORF)|(0<<EXTRF)|(0<<PORF)
 #define WDT_PREP_ON			WDTCSR|=(1<<WDCE)|(1<<WDE)
-#define WDT_SW_ON			WDTCSR=(1<<WDE)|(1<<WDP0)|(1<<WDP1)|(1<<WDP2)	// MCU reset after ~2.0 s
+#define WDT_SW_ON			WDTCSR=(1<<WDE)|(0<<WDP3)|(1<<WDP2)|(1<<WDP1)|(0<<WDP0)	// MCU reset after ~1.0 s
 
 // System timer setup.
 #define SYST_INT			TIMER2_COMPA_vect			// Interrupt vector alias
@@ -227,8 +227,13 @@ inline void HW_init(void)
 	CAM_REC_PORT |= CAM_REC_PIN;	CAM_REC_DIR &= ~CAM_REC_PIN;	// Camera record button input.
 	CAM_RR_PORT |= CAM_RR_PIN;		CAM_RR_DIR &= ~CAM_RR_PIN;		// Camera RR button input.
 	VTR_VID_PORT |= VTR_VID_BIT;	VTR_VID_DIR &= ~VTR_VID_BIT;	// Video signal direction input.
+#ifdef EN_SERIAL
 	VTR_SER_PORT |= VTR_SDAT_BIT;	VTR_SER_DIR &= ~VTR_SDAT_BIT;	// Serial link data pin.
 	VTR_SER_PORT |= VTR_SCLK_BIT;	VTR_SER_DIR &= ~VTR_SCLK_BIT;	// Serial link clock pin input.
+#else
+	VTR_SER_PORT &= ~VTR_SDAT_BIT;	VTR_SER_DIR &= ~VTR_SDAT_BIT;
+	VTR_SER_PORT &= ~VTR_SCLK_BIT;	VTR_SER_DIR &= ~VTR_SCLK_BIT;
+#endif	/* EN_SERIAL */
 	ADC_PORT &= ~ADC_12V_PIN;		ADC_DIR &= ~ADC_12V_PIN;		// ADC input power supply measurement pin.
 	ADC_PORT &= ~ADC_CAM_PIN;		ADC_DIR &= ~ADC_CAM_PIN;		// ADC camera supply measurement pin.
 	
@@ -236,19 +241,21 @@ inline void HW_init(void)
 	SYST_CONFIG1; SYST_CONFIG2; SYST_CONFIG3;
 	SYST_RESET;
 	SYST_EN_INTR;
-	
+
+#ifdef EN_SERIAL	
 	// Serial link timing.
 	SERT_CONFIG1; SERT_CONFIG2;
 	SERT_RESET;
 	SERT_EN_INTR;
+
+	// Serial link interrupts.
+	VTR_SER_CONFIG1; VTR_SER_CONFIG2;
+#endif	/* EN_SERIAL */
 	
 	// ADC configuration.
 	ADC_CONFIG1; ADC_CONFIG2;
 	ADC_PWR_SAVE;
 	
-	// Serial link interrupts.
-	VTR_SER_CONFIG1; VTR_SER_CONFIG2;
-
 	// Debug outputs.
 	DBG_PORT &= ~(DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 	DBG_DIR |= (DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);

@@ -44,14 +44,12 @@ Created: 2024-04-21
 #define	TASK_BATT_BLINK		(1<<3)	// Low battery blink
 #define	TASK_FAST_BLINK		(1<<4)	// Indicator fast blink source
 #define	TASK_SLOW_BLINK		(1<<5)	// Indicator slow blink source
-#define	TASK_TIME_STBY		(1<<6)	// Standby trigger by timeout
 
 // Flags for [u8_state].
 #define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
 #define	STATE_CAM_OFF		(1<<1)	// Camera is not connected or is in power save mode
 #define	STATE_LOW_BATT		(1<<2)	// Incoming power has too low voltage
 #define	STATE_SERIAL_DET	(1<<3)	// Serial link present
-#define	STATE_REC_INHIBIT	(1<<4)	// Recording is inhibited
 
 // Voltage thresholds.
 enum
@@ -76,28 +74,41 @@ enum
 // Timeouts.
 enum
 {
-	TIME_STB_PAUSE	= 60,			// 30 s delay before going into standby from paused recording
-	TIME_STB_IDLE	= 120,			// 60 s delay before going into standby from idle/stop
 	TIME_STARTUP	= 250,			// 500 ms startup delay
-	TIME_VTR_PB		= 200,			// 400 ms delay between playback/record switching
+	TIME_VTR_PB		= 150,			// 300 ms delay between playback/record switching
 	TIME_CAM_REC	= 150,			// 300 ms delay for detecting triggered record signal
 	TIME_CAM_RR		= 250,			// 500 ms delay for transition between review and record pause
-	TIME_CMD		= 100,			// 200 ms duration on the new command to the VTR
+	TIME_REC_FADE	= 12,			// 6 s delay after record button state change before tally light blinking (~5 s fade in/out)
+	TIME_CMD		= 100,			// 200 ms duration on the new serial command to the VTR
 	TIME_SER_CLK	= 12,			// 96 us maximum time between falling edges in single byte transmission
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
 	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
+	TIME_SER_C_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
+	TIME_SER_C_RP	= 20,			// 10 s delay before going into standby from paused recording
+	TIME_SER_C_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
 };
 
 // Logic states for operating with serial link.
+// TODO: Rec Review processing (unable to test due to faulty camera cable)
 enum
 {
 	LST_STOP,						// Initial state before any record or if errored out of record mode
 	LST_INH_CHECK,					// Record commanded from camera, checking if it is possible
 	LST_REC_RDY,					// Recording granted, indicating, no actual recording
-	LST_REC_PAUSE,					// Record paused
+	LST_REC_PAUSE,					// Pause recording
 	LST_RECORD,						// Recording
-	LST_REC_PWRSV,					// Record paused, VTR put in standby to preserve energy
+	LST_REC_PWRSV,					// Pause recording with powersave
 	LST_ERROR,						// Errored out of normal operation (temporary mode)
+};
+
+// Error codes for operating with serial link.
+enum
+{
+	ERR_ALL_OK,						// No error registered
+	ERR_NO_TAPE,					// No tape in the VTR
+	ERR_REC_INHIBIT,				// Inserted tape is protected from recording	
+	ERR_REC_TIMEOUT,				// Unable to start recording in reasonable time
+	ERR_CTRL_FAIL,					// Lost mode control of the VTR
 };
 
 #define	SER_BYTE_LEN		8		// Number of bits in a byte
@@ -151,7 +162,6 @@ enum
 {
 	STTR_REC_INH	= (1<<7),		// Record inhibit switch is active
 	STTR_LN_MASK	= 0x0F,			// Mask for the low nibble
-	STTR_HN_MASK	= 0xF0,			// Mask for the high nibble
 	STTR_LN_STOP	= 0b00000000,	// Low nibble for STOP
 	STTR_LN_EJECT	= 0b00000001,	// Low nibble for EJECT
 	STTR_LN_REW		= 0b00000010,	// Low nibble for REWIND
@@ -160,24 +170,27 @@ enum
 	STTR_LN_CUE		= 0b00000101,	// Low nibble for SEARCH FORWARD
 	STTR_LN_STBY	= 0b00000111,	// Low nibble for STAND-BY
 	STTR_LN_PLAY	= 0b00001000,	// Low nibble for PLAY
-	STTR_LN_STILL	= 0b00001001,	// Low nibble for STILL
+	STTR_LN_PLAY_P	= 0b00001001,	// Low nibble for PLAY+PAUSE
 	STTR_LN_REC		= 0b00001010,	// Low nibble for RECORD
-	STTR_LN_PAUSE	= 0b00001011,	// Low nibble for PAUSE
+	STTR_LN_REC_P	= 0b00001011,	// Low nibble for RECORD+PAUSE
 	STTR_LN_ADUB	= 0b00001100,	// Low nibble for AUDIO DUB
-	STTR_LN_ADUBP	= 0b00001101,	// Low nibble for AUDIO DUB PAUSE
+	STTR_LN_ADUB_P	= 0b00001101,	// Low nibble for AUDIO DUB+PAUSE
 	STTR_LN_VADD	= 0b00001110,	// Low nibble for VIDEO ADD
-	STTR_LN_VADDP	= 0b00001111,	// Low nibble for VIDEO ADD PAUSE
+	STTR_LN_VADD_P	= 0b00001111,	// Low nibble for VIDEO ADD+PAUSE
+	STTR_HN_MASK	= 0xF0,			// Mask for the high nibble
 	STTR_HN_S_STOP	= 0b00000000,	// High nibble for stable mechanical STOP (with a tape inside)
 	STTR_HN_S_FAST	= 0b00010000,	// High nibble for stable mechanical EJECT/STOP (with no tape)/REWIND/FAST FORWARD
 	STTR_HN_P_STOP	= 0b00100000,	// High nibble for moving to STOP
 	STTR_HN_P_PLAY	= 0b00110000,	// High nibble for moving to PLAY/SLOW/SEARCH/STILL
-	STTR_HN_M_PLAY	= 0b01000000,	// High nibble for moving to PLAY (no video output yet)/REC (going to/from PAUSE)
+	STTR_HN_M_RUN	= 0b01000000,	// High nibble for moving to PLAY (no video output yet)/REC (going to/from PAUSE)
 	STTR_HN_S_RECP	= 0b01010000,	// High nibble for stable mechanical REC+PAUSE
 	STTR_HN_S_REC	= 0b01100000,	// High nibble for stable mechanical RECORD
 	STTR_HN_S_PLAY	= 0b01110000,	// High nibble for stable mechanical PLAY/SLOW/SEARCH/STILL
 };
 
 void load_serial_cmd(uint8_t new_cmd);
+void go_to_rec_paused(void);
+void go_to_error(uint8_t err_code);
 int main(void);
 
 #endif /* SONY10P_H_ */

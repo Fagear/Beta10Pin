@@ -28,4 +28,10 @@ Defines/switches for configuring compile-time options.
 // Allow standby operations
 #define EN_STANDBY
 
+// Allow camera power detection
+//#define EN_CAM_PWR_DEF
+
+// Allow operation over Panasonic serial link
+#define EN_SERIAL
+
 #endif /* CONFIG_H_ */
