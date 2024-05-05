@@ -153,8 +153,8 @@ Hardware defines (pseudo-HAL) and setup routines.
 
 // Power supply ADC inputs.
 #define ADC_INT			ADC_vect						// Interrupt vector alias
-#define ADC_CONFIG1		ADMUX = (0<<REFS0)|(0<<REFS1)|(0<<ADLAR)|(0<<MUX0)|(0<<MUX1)|(0<<MUX2)|(0<<MUX3)
-#define ADC_CONFIG2		ADCSRA = (1<<ADEN)|(1<<ADIE)|(1<<ADPS0)|(0<<ADPS1)|(1<<ADPS2)
+#define ADC_CONFIG1		ADMUX = (1<<REFS0)|(1<<REFS1)|(0<<ADLAR)|(0<<MUX0)|(0<<MUX1)|(0<<MUX2)|(0<<MUX3)	// 1.1 internal ref., right-adjusted
+#define ADC_CONFIG2		ADCSRA = (1<<ADEN)|(1<<ADIE)|(1<<ADPS0)|(1<<ADPS1)|(1<<ADPS2)						// ADC clk = clk/128 (62.5 kHz)
 #define ADC_PWR_SAVE	DIDR0 |= ((1<<ADC0D)|(1<<ADC1D))
 #define ADC_START		ADCSRA |= (1<<ADSC)
 #define ADC_MUX_RD		(ADMUX&((1<<MUX0)|(1<<MUX1)|(1<<MUX2)|(1<<MUX3)))

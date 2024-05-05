@@ -23,6 +23,7 @@ Created: 2024-04-21
 #define SONY10P_H_
 
 #include <stdio.h>
+#include <string.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <avr/wdt.h>
@@ -39,11 +40,12 @@ Created: 2024-04-21
 
 // Flags for [u8_tasks].
 #define	TASK_500HZ			(1<<0)	// 500 Hz event
-#define	TASK_5HZ			(1<<1)	// 5 Hz event
-#define	TASK_2HZ			(1<<2)	// 2 Hz event
-#define	TASK_BATT_BLINK		(1<<3)	// Low battery blink
-#define	TASK_FAST_BLINK		(1<<4)	// Indicator fast blink source
-#define	TASK_SLOW_BLINK		(1<<5)	// Indicator slow blink source
+#define	TASK_50HZ			(1<<1)	// 50 Hz event
+#define	TASK_5HZ			(1<<2)	// 5 Hz event
+#define	TASK_2HZ			(1<<3)	// 2 Hz event
+#define	TASK_BATT_BLINK		(1<<4)	// Low battery blink
+#define	TASK_FAST_BLINK		(1<<5)	// Indicator fast blink source
+#define	TASK_SLOW_BLINK		(1<<6)	// Indicator slow blink source
 
 // Flags for [u8_state].
 #define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
@@ -54,10 +56,19 @@ Created: 2024-04-21
 // Voltage thresholds.
 enum
 {
-	VIN_LOW_BATT	= 80,			// Input voltage 11.0 V
-	VIN_OFF			= 20,			// Input voltage 9.5 V
-	VD_CAM_ON		= 43,			// Voltage difference for detected camera ON (35...59 % duty of 8-bit)
+	VIN_LOW_BATT_UP	= 40,			// Input voltage 10.65 V ("battery OK")
+	VIN_LOW_BATT_DN = 34,			// Input voltage 10.35 V ("battery low")
+	VIN_OFF			= 13,			// Input voltage 9.5 V
+	VD_CAM_ON_UP	= 65,			// Voltage difference for detected camera ON
+	VD_CAM_ON_DN	= 55,			// Voltage difference for detected camera OFF
 };
+// Voltage difference when camera is operating: 34...41% duty of 8-bit PWM (87...105) of [u8_cam_pwr]
+// Voltage difference when camera is operating w/o viewfinder: 31...35% (79...89) duty of 8-bit PWM
+// Voltage difference when camera is connected, but in standby: 16...19% (41...48) duty of 8-bit PWM
+// Voltage difference when camera is not connected: 9...15% duty of 8-bit PWM
+
+// Length of the buffer for each ADC channel before filtering.
+#define	ADC_HIST_LEN		49
 
 // Flags for [u8_inputs].
 #define	LINP_VTR_PB			(1<<0)	// VTR is in playback mode
@@ -76,7 +87,7 @@ enum
 {
 	TIME_STARTUP	= 250,			// 500 ms startup delay
 	TIME_VTR_PB		= 150,			// 300 ms delay between playback/record switching
-	TIME_CAM_REC	= 150,			// 300 ms delay for detecting triggered record signal
+	TIME_CAM_REC	= 125,			// 250 ms delay for detecting triggered record signal
 	TIME_CAM_RR		= 250,			// 500 ms delay for transition between review and record pause
 	TIME_REC_FADE	= 12,			// 6 s delay after record button state change before tally light blinking (~5 s fade in/out)
 	TIME_CMD		= 100,			// 200 ms duration on the new serial command to the VTR
@@ -84,7 +95,7 @@ enum
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
 	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 	TIME_SER_C_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
-	TIME_SER_C_RP	= 20,			// 10 s delay before going into standby from paused recording
+	TIME_SER_C_RP	= 240,			// 120 s delay before going into standby from paused recording
 	TIME_SER_C_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
 };
 
@@ -188,8 +199,10 @@ enum
 	STTR_HN_S_PLAY	= 0b01110000,	// High nibble for stable mechanical PLAY/SLOW/SEARCH/STILL
 };
 
+void sort_array(uint8_t *arr_ptr);
 void load_serial_cmd(uint8_t new_cmd);
 void go_to_rec_paused(void);
+void go_to_powersave(void);
 void go_to_error(uint8_t err_code);
 int main(void);
 

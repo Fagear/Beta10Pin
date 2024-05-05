@@ -11,6 +11,11 @@ uint8_t u8_2hz_cnt=0;						// Divider for 2 Hz
 uint8_t u8_1hz_cnt=0;						// Divider for 1 Hz
 uint8_t u8_adc_12v=0;						// Voltage level at the power input
 uint8_t u8_adc_cam=0;						// Voltage level at the camera output
+uint8_t u8a_12v_hist[ADC_HIST_LEN];			// Last [ADC_HIST_LEN] values of [u8_adc_12v]
+uint8_t u8a_camv_hist[ADC_HIST_LEN];		// Last [ADC_HIST_LEN] values of [u8_adc_cam]
+uint8_t u8_adc_fill_ptr=0;					// Fill pointer for [u8a_12v_hist] and [u8a_camv_hist]
+uint8_t u8_volt_12v=0;						// Filtered data from [u8_adc_12v]
+uint8_t u8_volt_cam=0;						// Filtered data from [u8_adc_cam]
 uint8_t u8_cam_pwr=0;						// Camera consumption (voltage difference)
 uint8_t u8_inputs=0;						// Inputs state storage
 uint8_t u8_outputs=0;						// Outputs state storage
@@ -85,85 +90,86 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 1,	 1,	 2,	 2,	 3,	 4,
-	4,	 5,	 5,	 6,	 7,	 7,	 8,	 8,
-	9,	 10,	 10,	 11,	 11,	 12,	 13,	 13,
-	14,	 14,	 15,	 16,	 16,	 17,	 18,	 18,
-	19,	 19,	 20,	 21,	 21,	 22,	 22,	 23,
-	24,	 24,	 25,	 25,	 26,	 27,	 27,	 28,
-	28,	 29,	 30,	 30,	 31,	 31,	 32,	 33,
-	33,	 34,	 34,	 35,	 36,	 36,	 37,	 37,
-	38,	 39,	 39,	 40,	 40,	 41,	 42,	 42,
-	43,	 43,	 44,	 45,	 45,	 46,	 46,	 47,
-	48,	 48,	 49,	 49,	 50,	 51,	 51,	 52,
-	53,	 53,	 54,	 54,	 55,	 56,	 56,	 57,
-	57,	 58,	 59,	 59,	 60,	 60,	 61,	 62,
-	62,	 63,	 63,	 64,	 65,	 65,	 66,	 66,
-	67,	 68,	 68,	 69,	 69,	 70,	 71,	 71,
-	72,	 72,	 73,	 74,	 74,	 75,	 75,	 76,
-	77,	 77,	 78,	 78,	 79,	 80,	 80,	 81,
-	81,	 82,	 83,	 83,	 84,	 84,	 85,	 86,
-	86,	 87,	 88,	 88,	 89,	 89,	 90,	 91,
-	91,	 92,	 92,	 93,	 94,	 94,	 95,	 95,
-	96,	 97,	 97,	 98,	 98,	 99,	 100,	 100,
-	101,	 101,	 102,	 103,	 103,	 104,	 104,	 105,
-	106,	 106,	 107,	 107,	 108,	 109,	 109,	 110,
-	110,	 111,	 112,	 112,	 113,	 113,	 114,	 115,
-	115,	 116,	 116,	 117,	 118,	 118,	 119,	 119,
-	120,	 121,	 121,	 122,	 123,	 123,	 124,	 124,
-	125,	 126,	 126,	 127,	 127,	 128,	 129,	 129,
-	130,	 130,	 131,	 132,	 132,	 133,	 133,	 134,
-	135,	 135,	 136,	 136,	 137,	 138,	 138,	 139,
-	139,	 140,	 141,	 141,	 142,	 142,	 143,	 144,
-	144,	 145,	 145,	 146,	 147,	 147,	 148,	 148,
-	149,	 150,	 150,	 151,	 151,	 152,	 153,	 153,
-	154,	 154,	 155,	 156,	 156,	 157,	 158,	 158,
-	159,	 159,	 160,	 161,	 161,	 162,	 162,	 163,
-	164,	 164,	 165,	 165,	 166,	 167,	 167,	 168,
-	168,	 169,	 170,	 170,	 171,	 171,	 172,	 173,
-	173,	 174,	 174,	 175,	 176,	 176,	 177,	 177,
-	178,	 179,	 179,	 180,	 180,	 181,	 182,	 182,
-	183,	 183,	 184,	 185,	 185,	 186,	 186,	 187,
-	188,	 188,	 189,	 189,	 190,	 191,	 191,	 192,
-	193,	 193,	 194,	 194,	 195,	 196,	 196,	 197,
-	197,	 198,	 199,	 199,	 200,	 200,	 201,	 202,
-	202,	 203,	 203,	 204,	 205,	 205,	 206,	 206,
-	207,	 208,	 208,	 209,	 209,	 210,	 211,	 211,
-	212,	 212,	 213,	 214,	 214,	 215,	 215,	 216,
-	217,	 217,	 218,	 218,	 219,	 220,	 220,	 221,
-	221,	 222,	 223,	 223,	 224,	 225,	 225,	 226,
-	226,	 227,	 228,	 228,	 229,	 229,	 230,	 231,
-	231,	 232,	 232,	 233,	 234,	 234,	 235,	 235,
-	236,	 237,	 237,	 238,	 238,	 239,	 240,	 240,
-	241,	 241,	 242,	 243,	 243,	 244,	 244,	 245,
-	246,	 246,	 247,	 247,	 248,	 249,	 249,	 250,
-	250,	 251,	 252,	 252,	 253,	 253,	 254,	 254
+	1,	 1,	 2,	 2,	 2,	 3,	 3,	 4,
+	4,	 4,	 5,	 5,	 6,	 6,	 7,	 7,
+	7,	 8,	 8,	 9,	 9,	 9,	 10,	 10,
+	11,	 11,	 11,	 12,	 12,	 13,	 13,	 13,
+	14,	 14,	 15,	 15,	 15,	 16,	 16,	 17,
+	17,	 17,	 18,	 18,	 19,	 19,	 20,	 20,
+	20,	 21,	 21,	 22,	 22,	 22,	 23,	 23,
+	24,	 24,	 24,	 25,	 25,	 26,	 26,	 26,
+	27,	 27,	 28,	 28,	 28,	 29,	 29,	 30,
+	30,	 30,	 31,	 31,	 32,	 32,	 33,	 33,
+	33,	 34,	 34,	 35,	 35,	 35,	 36,	 36,
+	37,	 37,	 37,	 38,	 38,	 39,	 39,	 39,
+	40,	 40,	 41,	 41,	 41,	 42,	 42,	 43,
+	43,	 43,	 44,	 44,	 45,	 45,	 46,	 46,
+	46,	 47,	 47,	 48,	 48,	 48,	 49,	 49,
+	50,	 50,	 50,	 51,	 51,	 52,	 52,	 52,
+	53,	 53,	 54,	 54,	 54,	 55,	 55,	 56,
+	56,	 57,	 57,	 57,	 58,	 58,	 59,	 59,
+	59,	 60,	 60,	 61,	 61,	 61,	 62,	 62,
+	63,	 63,	 63,	 64,	 64,	 65,	 65,	 65,
+	66,	 66,	 67,	 67,	 67,	 68,	 68,	 69,
+	69,	 70,	 70,	 70,	 71,	 71,	 72,	 72,
+	72,	 73,	 73,	 74,	 74,	 74,	 75,	 75,
+	76,	 76,	 76,	 77,	 77,	 78,	 78,	 78,
+	79,	 79,	 80,	 80,	 80,	 81,	 81,	 82,
+	82,	 83,	 83,	 83,	 84,	 84,	 85,	 85,
+	85,	 86,	 86,	 87,	 87,	 87,	 88,	 88,
+	89,	 89,	 89,	 90,	 90,	 91,	 91,	 91,
+	92,	 92,	 93,	 93,	 93,	 94,	 94,	 95,
+	95,	 96,	 96,	 96,	 97,	 97,	 98,	 98,
+	98,	 99,	 99,	 100,	 100,	 100,	 101,	 101,
+	102,	 102,	 102,	 103,	 103,	 104,	 104,	 104,
+	105,	 105,	 106,	 106,	 107,	 107,	 107,	 108,
+	108,	 109,	 109,	 109,	 110,	 110,	 111,	 111,
+	111,	 112,	 112,	 113,	 113,	 113,	 114,	 114,
+	115,	 115,	 115,	 116,	 116,	 117,	 117,	 117,
+	118,	 118,	 119,	 119,	 120,	 120,	 120,	 121,
+	121,	 122,	 122,	 122,	 123,	 123,	 124,	 124,
+	124,	 125,	 125,	 126,	 126,	 126,	 127,	 127,
+	128,	 128,	 128,	 129,	 129,	 130,	 130,	 130,
+	131,	 131,	 132,	 132,	 133,	 133,	 133,	 134,
+	134,	 135,	 135,	 135,	 136,	 136,	 137,	 137,
+	137,	 138,	 138,	 139,	 139,	 139,	 140,	 140,
+	141,	 141,	 141,	 142,	 142,	 143,	 143,	 143,
+	144,	 144,	 145,	 145,	 146,	 146,	 146,	 147,
+	147,	 148,	 148,	 148,	 149,	 149,	 150,	 150,
+	150,	 151,	 151,	 152,	 152,	 152,	 153,	 153,
+	154,	 154,	 154,	 155,	 155,	 156,	 156,	 157,
+	157,	 157,	 158,	 158,	 159,	 159,	 159,	 160,
+	160,	 161,	 161,	 161,	 162,	 162,	 163,	 163,
+	163,	 164,	 164,	 165,	 165,	 165,	 166,	 166,
+	167,	 167,	 167,	 168,	 168,	 169,	 169,	 170,
+	170,	 170,	 171,	 171,	 172,	 172,	 172,	 173,
+	173,	 174,	 174,	 174,	 175,	 175,	 176,	 176,
+	176,	 177,	 177,	 178,	 178,	 178,	 179,	 179,
+	180,	 180,	 180,	 181,	 181,	 182,	 182,	 183,
+	183,	 183,	 184,	 184,	 185,	 185,	 185,	 186,
+	186,	 187,	 187,	 187,	 188,	 188,	 189,	 189,
+	189,	 190,	 190,	 191,	 191,	 191,	 192,	 192,
+	193,	 193,	 193,	 194,	 194,	 195,	 195,	 196,
+	196,	 196,	 197,	 197,	 198,	 198,	 198,	 199,
+	199,	 200,	 200,	 200,	 201,	 201,	 202,	 202,
+	202,	 203,	 203,	 204,	 204,	 204,	 205,	 205,
+	206,	 206,	 207,	 207,	 207,	 208,	 208,	 209,
+	209,	 209,	 210,	 210,	 211,	 211,	 211,	 212,
+	212,	 213,	 213,	 213,	 214,	 214,	 215,	 215,
+	215,	 216,	 216,	 217,	 217,	 217,	 218,	 218,
+	219,	 219,	 220,	 220,	 220,	 221,	 221,	 222,
+	222,	 222,	 223,	 223,	 224,	 224,	 224,	 225,
+	225,	 226,	 226,	 226,	 227,	 227,	 228,	 228,
+	228,	 229,	 229,	 230,	 230,	 230,	 231,	 231,
+	232,	 232,	 233,	 233,	 233,	 234,	 234,	 235,
+	235,	 235,	 236,	 236,	 237,	 237,	 237,	 238,
+	238,	 239,	 239,	 239,	 240,	 240,	 241,	 241,
+	241,	 242,	 242,	 243,	 243,	 243,	 244,	 244,
+	245,	 245,	 246,	 246,	 246,	 247,	 247,	 248,
+	248,	 248,	 249,	 249,	 250,	 250,	 250,	 251,
+	251,	 252,	 252,	 252,	 253,	 253,	 254,	 254
 };
+
 
 // Firmware description strings.
 volatile const uint8_t ucaf_version[] PROGMEM = "v0.04";			// Firmware version
@@ -378,6 +384,7 @@ static inline void soft_timer_management(void)
 		{
 			u8_50hz_cnt = 0;
 			// 50 Hz event.
+			u8_tasks |= TASK_50HZ;
 
 			u8_5hz_cnt++;
 			if(u8_5hz_cnt>=5)
@@ -422,17 +429,29 @@ static inline void soft_timer_management(void)
 //-------------------------------------- Check state of input power supply.
 static inline void input_power_check(void)
 {
-	u8_state &= ~STATE_LOW_BATT;
 	// Don't check if input voltage channel is not read yet.
-	if(u8_adc_12v==0)
+	if(u8_volt_12v==0)
 	{
 		return;
 	}
 	// Check if "low battery" indication should be lit.
-	// TODO: ADC filtering
-	if(u8_adc_12v<VIN_LOW_BATT)
+	if((u8_state&STATE_LOW_BATT)==0)
 	{
-		u8_state |= STATE_LOW_BATT;
+		// "Low battery" flag was NOT active before.
+		// Check for lower threshold (for hysteresis).
+		if(u8_volt_12v<=VIN_LOW_BATT_DN)
+		{
+			u8_state |= STATE_LOW_BATT;
+		}
+	}
+	else
+	{
+		// "Low battery" flag WAS active before.
+		// Check for higher threshold (for hysteresis).
+		if(u8_volt_12v>=VIN_LOW_BATT_UP)
+		{
+			u8_state &= ~STATE_LOW_BATT;
+		}
 	}
 }
 
@@ -442,15 +461,15 @@ static inline void camera_power_check(void)
 #ifdef EN_CAM_PWR_DEF	
 	u8_cam_pwr = 0;
 	// Don't calculate consumption if one of the ADC channels is not read yet.
-	if((u8_adc_12v==0)||(u8_adc_cam==0))
+	if((u8_volt_12v==0)||(u8_volt_cam==0))
 	{
 		return;
 	}
 	// Prevent overflow if voltage dividers/ADC tolerances lead to impossible.
-	if(u8_adc_12v>=u8_adc_cam)
+	if(u8_volt_12v>=u8_volt_cam)
 	{
 		// Calculate camera consumption.
-		u8_cam_pwr = u8_adc_12v - u8_adc_cam;
+		u8_cam_pwr = u8_volt_12v - u8_volt_cam;
 	}
 	if(u8_cam_pwr<32)
 	{
@@ -458,14 +477,22 @@ static inline void camera_power_check(void)
 	}
 	else
 	{
-		u8_cam_pwr = 255;
+		u8_cam_pwr = 254;
 	}
 	// Check if camera is powered on.
-	// TODO: this needs work, unreliable
-	u8_state &= ~STATE_CAM_OFF;
-	if(u8_cam_pwr<VD_CAM_ON)
+	if((u8_state&STATE_CAM_OFF)==0)
 	{
-		u8_state |= STATE_CAM_OFF;
+		if(u8_cam_pwr<=VD_CAM_ON_DN)
+		{
+			u8_state |= STATE_CAM_OFF;
+		}
+	}
+	else
+	{
+		if(u8_cam_pwr>=VD_CAM_ON_UP)
+		{
+			u8_state &= ~STATE_CAM_OFF;
+		}
 	}
 #endif /* EN_CAM_PWR_DEF */
 }
@@ -494,6 +521,7 @@ static inline void delay_management(void)
 //-------------------------------------- Process standby timers.
 static inline void slow_state_timing(void)
 {
+	// Count down every 500 ms.
 	if(u8_rec_fade_dly!=0) u8_rec_fade_dly--;
 #ifdef EN_SERIAL
 	if(u8_ser_mode_dly!=0) u8_ser_mode_dly--;
@@ -631,6 +659,52 @@ static inline void read_inputs(void)
 	}
 }
 
+//-------------------------------------- Sort. Array. What else?
+void sort_array(uint8_t *arr_ptr)
+{
+	uint8_t tmp_val;
+	// Perform bubble sort.
+	for(uint8_t idx=0;idx<=((ADC_HIST_LEN/2)+1);idx++)
+	{
+		for(uint8_t cyc=0;cyc<(ADC_HIST_LEN-idx-1);cyc++)
+		{
+			if(arr_ptr[cyc]>arr_ptr[cyc+1])
+			{
+				tmp_val = arr_ptr[cyc];
+				arr_ptr[cyc] = arr_ptr[cyc+1];
+				arr_ptr[cyc+1] = tmp_val;
+			}
+		}
+	}
+}
+
+//-------------------------------------- Filter ADC values.
+static inline void filter_adc(void)
+{
+	// Update next values in history.
+	u8a_12v_hist[u8_adc_fill_ptr] = u8_adc_12v;
+	u8a_camv_hist[u8_adc_fill_ptr] = u8_adc_cam;
+	// Loop fill pointer.
+	u8_adc_fill_ptr++;
+	if(u8_adc_fill_ptr>=ADC_HIST_LEN)
+	{
+		u8_adc_fill_ptr = 0;
+	}
+	uint8_t sort_vals[ADC_HIST_LEN];
+	// Copy first array.
+	memcpy(sort_vals, u8a_12v_hist, ADC_HIST_LEN);
+	// Sort the data.
+	sort_array(sort_vals);
+	// Pick center one (median filter).
+	u8_volt_12v = sort_vals[(ADC_HIST_LEN/2)];
+	// Copy second array.
+	memcpy(sort_vals, u8a_camv_hist, ADC_HIST_LEN);
+	// Sort the data.
+	sort_array(sort_vals);
+	// Pick center one (median filter).
+	u8_volt_cam = sort_vals[(ADC_HIST_LEN/2)];
+}
+
 #ifdef EN_SERIAL
 //-------------------------------------- Upload new command to the VTR.
 void load_serial_cmd(uint8_t new_cmd)
@@ -648,6 +722,15 @@ void go_to_rec_paused(void)
 	u8_ser_mode_dly = TIME_SER_C_RP;
 	// Move to paused recording mode.
 	u8_link_state = LST_REC_PAUSE;
+}
+
+//-------------------------------------- Set serial link state to powersaved paused recording.
+void go_to_powersave(void)
+{
+	// Clear record lock to stay in powersave.
+	u8_state &= ~STATE_REC_LOCK;
+	// To go powersave mode.
+	u8_link_state = LST_REC_PWRSV;
 }
 
 //-------------------------------------- Set serial link state to error.
@@ -790,7 +873,6 @@ static inline void state_machine(void)
 			if((u8_state&STATE_REC_LOCK)==0)
 			{
 				// Move to paused recording mode.
-				//go_to_rec_paused();
 				u8_link_state = LST_RECORD;
 			}
 			else
@@ -807,10 +889,16 @@ static inline void state_machine(void)
 			// Keep recording mode.
 			load_serial_cmd(SCMD_REC);
 			// Check if state needs to be changed.
+			// Check if camera is present.
+			if((u8_state&STATE_CAM_OFF)!=0)
+			{
+				// No camera.
+				go_to_powersave();
+			}
 			// Check mechanical mode.
-			if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
+					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
+					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -819,8 +907,7 @@ static inline void state_machine(void)
 			else if(u8_ser_mode_dly==0)
 			{
 				// Pause is too long, tape is wearing out, battery is draining.
-				// To go paused powersave recording.
-				u8_link_state = LST_REC_PWRSV;
+				go_to_powersave();
 			}
 			// Check user input.
 			else if((u8_state&STATE_REC_LOCK)!=0)
@@ -865,8 +952,7 @@ static inline void state_machine(void)
 			if((u8_state&STATE_CAM_OFF)!=0)
 			{
 				// No camera.
-				// To go powersave mode.
-				u8_link_state = LST_REC_PWRSV;
+				go_to_powersave();
 			}
 			// Check mechanical mode.
 			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
@@ -1116,6 +1202,12 @@ int main(void)
 {
 	// Start-up initialization.
 	system_startup();
+	// Clear ADC history.
+	for(uint8_t idx=0;idx<ADC_HIST_LEN;idx++)
+	{
+		u8a_12v_hist[idx] = 0;
+		u8a_camv_hist[idx] = 0;
+	}
 
 	// Let hardware stabilize before reading anything.
 	u8_start_dly = TIME_STARTUP;
@@ -1162,16 +1254,14 @@ int main(void)
 			// Process additional timers.
 			soft_timer_management();
 			
-			DBG_2_ON;
 			// Start ADC conversion.
 			ADC_START;
-			DBG_2_OFF;
 			
-			//DBG_PWM = u8_cam_pwr;
-			DBG_PWM = u8_adc_12v;
+			//DBG_PWM = u8_adc_12v;
+			//DBG_PWM = u8_volt_12v;
+			DBG_PWM = u8_cam_pwr;
 			//if((u8_inputs&LINP_VTR_PB)==0)
 			//if(u8_vid_dir_dly!=0)
-			//if((u8_state&STATE_CAM_OFF)!=0)
 			//if((u8_state&STATE_REC_LOCK)!=0)
 			if((u8_state&STATE_LOW_BATT)!=0)
 			{
@@ -1185,12 +1275,22 @@ int main(void)
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
 			//if((u8_state&STATE_SERIAL_DET)!=0)
-			/*{
+			if((u8_state&STATE_CAM_OFF)!=0)
+			{
 				DBG_2_ON;
 			}
 			else
 			{
 				DBG_2_OFF;
+			}
+			
+			//if((u8_state&STATE_REC_LOCK)!=0)
+			/*{
+				DBG_3_ON;
+			}
+			else
+			{
+				DBG_3_OFF;
 			}*/
 			
 			// Process slow events.
@@ -1204,10 +1304,13 @@ int main(void)
 				// Manage timing of certain states.
 				slow_state_timing();
 			}
-			if((u8_tasks&TASK_500HZ)!=0)
+			if((u8_tasks&TASK_50HZ)!=0)
 			{
-				u8_tasks&=~TASK_500HZ;
-				// 500 Hz event, 2 ms period.
+				u8_tasks&=~TASK_50HZ;
+				//DBG_2_ON;
+				// 50 Hz event, 20 ms period.
+				// Perform history update and filtering for ADC.
+				filter_adc();
 				// Check state of incoming power.
 				input_power_check();
 				// Calculate camera power consumption.
@@ -1216,10 +1319,16 @@ int main(void)
 				read_inputs();
 				// Process inputs and produce outputs.
 				state_machine();
-				// Count-down various delays.
-				delay_management();
 				// Apply calculated values to outputs.
 				apply_outputs();
+				//DBG_2_OFF;
+			}
+			if((u8_tasks&TASK_500HZ)!=0)
+			{
+				u8_tasks&=~TASK_500HZ;
+				// 500 Hz event, 2 ms period.
+				// Count-down various delays.
+				delay_management();
 			}
 		}
     }
