@@ -41,11 +41,12 @@ Created: 2024-04-21
 // Flags for [u8_tasks].
 #define	TASK_500HZ			(1<<0)	// 500 Hz event
 #define	TASK_50HZ			(1<<1)	// 50 Hz event
-#define	TASK_5HZ			(1<<2)	// 5 Hz event
-#define	TASK_2HZ			(1<<3)	// 2 Hz event
-#define	TASK_BATT_BLINK		(1<<4)	// Low battery blink
-#define	TASK_FAST_BLINK		(1<<5)	// Indicator fast blink source
-#define	TASK_SLOW_BLINK		(1<<6)	// Indicator slow blink source
+#define	TASK_5HZ_PH1		(1<<2)	// 5 Hz event (phase 1)
+#define	TASK_5HZ_PH2		(1<<3)	// 5 Hz event (phase 2)
+#define	TASK_2HZ			(1<<4)	// 2 Hz event
+#define	TASK_BATT_BLINK		(1<<5)	// Low battery blink
+#define	TASK_FAST_BLINK		(1<<6)	// Indicator fast blink source
+#define	TASK_SLOW_BLINK		(1<<7)	// Indicator slow blink source
 
 // Flags for [u8_state].
 #define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
@@ -68,7 +69,7 @@ enum
 // Voltage difference when camera is not connected: 9...15% duty of 8-bit PWM
 
 // Length of the buffer for each ADC channel before filtering.
-#define	ADC_HIST_LEN		49
+#define	ADC_HIST_LEN		23
 
 // Flags for [u8_inputs].
 #define	LINP_VTR_PB			(1<<0)	// VTR is in playback mode
@@ -94,6 +95,7 @@ enum
 	TIME_SER_CLK	= 12,			// 96 us maximum time between falling edges in single byte transmission
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
 	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
+	TIME_SER_TO		= 150,			// 300 ms maximum time after last serial transmittion before link is lost
 	TIME_SER_C_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
 	TIME_SER_C_RP	= 240,			// 120 s delay before going into standby from paused recording
 	TIME_SER_C_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
@@ -120,6 +122,7 @@ enum
 	ERR_REC_INHIBIT,				// Inserted tape is protected from recording	
 	ERR_REC_TIMEOUT,				// Unable to start recording in reasonable time
 	ERR_CTRL_FAIL,					// Lost mode control of the VTR
+	ERR_LOST_LINK,					// Lost link with VTR
 };
 
 #define	SER_BYTE_LEN		8		// Number of bits in a byte

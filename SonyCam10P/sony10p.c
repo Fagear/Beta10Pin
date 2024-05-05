@@ -34,6 +34,7 @@ uint8_t u8_ser_error=ERR_ALL_OK;			// Last error during operating with serial li
 uint8_t u8_vtr_mode=0;						// Logic and mechanical mode of VTR, received through serial link
 uint8_t u8_ser_cmd_dly=0;					// Duration for sending new command to the VTR
 uint8_t u8_ser_mode_dly=0;					// Timer for serial link modes
+uint8_t u8_ser_link_wd=0;					// Watchdog timer for serial link communication
 #endif	/* EN_SERIAL */
 
 // Using LUT for trading ROM space for computing time to speed up ADC read routine.
@@ -223,6 +224,8 @@ ISR(VTR_SER_INT)
 	timer_data = SERT_DATA_8;
 	// Clear and restart timer.
 	SERT_RESET; SERT_START;
+	// Reset serial link watchdog.
+	u8_ser_link_wd = TIME_SER_TO;
 	// Check for rising or falling edge.
 	if(VTR_SCLK_STATE==0)
 	{
@@ -287,7 +290,6 @@ ISR(VTR_SER_INT)
 				// Enable output from data pin.
 				VTR_SDAT_OUT;
 			}
-			DBG_3_OFF;
 		}
 	}
 	else
@@ -342,6 +344,7 @@ ISR(SERT_INT)
 		// Serial link in not established.
 		u8i_interrupts &= ~(INTR_SERIAL|INTR_TALLY);
 	}
+	DBG_3_OFF;
 }
 #endif	/* EN_SERIAL */
 
@@ -387,6 +390,10 @@ static inline void soft_timer_management(void)
 			u8_tasks |= TASK_50HZ;
 
 			u8_5hz_cnt++;
+			if(u8_5hz_cnt==5)
+			{
+				u8_tasks |= TASK_5HZ_PH2;
+			}
 			if(u8_5hz_cnt>=5)
 			{
 				// Turn off fast blink.
@@ -396,7 +403,7 @@ static inline void soft_timer_management(void)
 			{
 				u8_5hz_cnt = 0;
 				// 5 Hz event.
-				u8_tasks |= TASK_5HZ;
+				u8_tasks |= TASK_5HZ_PH1;
 				// Turn on fast blink.
 				u8_tasks |= TASK_FAST_BLINK;
 				// Toggle slow blink.
@@ -506,6 +513,7 @@ static inline void delay_management(void)
 	if(u8_rec_trg_dly!=0) u8_rec_trg_dly--;
 	if(u8_rr_dly!=0) u8_rr_dly--;
 #ifdef EN_SERIAL
+	// Serial command timeout.
 	if(u8_ser_cmd_dly!=0)
 	{
 		u8_ser_cmd_dly--;
@@ -515,6 +523,17 @@ static inline void delay_management(void)
 		// Expire command, go idle.
 		u8_ser_cmd = SCMD_STOP;
 	}
+	// Serial link watchdog.
+	if(u8_ser_link_wd!=0)
+	{
+		u8_ser_link_wd--;
+	}
+	else
+	{
+		// No serial activity.
+		u8i_interrupts &= ~INTR_SERIAL;
+	}
+
 #endif	/* EN_SERIAL */
 }
 
@@ -678,8 +697,8 @@ void sort_array(uint8_t *arr_ptr)
 	}
 }
 
-//-------------------------------------- Filter ADC values.
-static inline void filter_adc(void)
+//-------------------------------------- Buffer ADC values.
+static inline void buffer_adc(void)
 {
 	// Update next values in history.
 	u8a_12v_hist[u8_adc_fill_ptr] = u8_adc_12v;
@@ -690,6 +709,12 @@ static inline void filter_adc(void)
 	{
 		u8_adc_fill_ptr = 0;
 	}
+}
+
+//-------------------------------------- Filter ADC values (phase 1).
+//-------------------------------------- Run time ~800 us @ 8 MHz.
+static inline void filter_adc_ph1(void)
+{
 	uint8_t sort_vals[ADC_HIST_LEN];
 	// Copy first array.
 	memcpy(sort_vals, u8a_12v_hist, ADC_HIST_LEN);
@@ -697,6 +722,13 @@ static inline void filter_adc(void)
 	sort_array(sort_vals);
 	// Pick center one (median filter).
 	u8_volt_12v = sort_vals[(ADC_HIST_LEN/2)];
+}
+
+//-------------------------------------- Filter ADC values (phase 2).
+//-------------------------------------- Run time ~800 us @ 8 MHz.
+static inline void filter_adc_ph2(void)
+{
+	uint8_t sort_vals[ADC_HIST_LEN];
 	// Copy second array.
 	memcpy(sort_vals, u8a_camv_hist, ADC_HIST_LEN);
 	// Sort the data.
@@ -754,7 +786,7 @@ static inline void state_machine(void)
 	// Check if serial link is present.
 	if((u8_state&STATE_SERIAL_DET)!=0)
 	{
-		// Serial link is present.
+		// Serial link is present, operating in serial linked mode.
 		// Check video direction managed by VTR.
 		if((u8_inputs&LINP_VTR_PB)!=0)
 		{
@@ -1064,13 +1096,21 @@ static inline void state_machine(void)
 	else
 #endif	/* EN_SERIAL */
 	{
-		// No serial link detected.
-#ifdef EN_SERIAL		
-		// Reset out all serial link related variables.
-		u8_link_state = LST_STOP;
-		u8_ser_error = ERR_ALL_OK;
-		u8_ser_mode_dly = 0;
-		u8_vtr_mode = 0;
+		// No serial link detected, operating in wired ("dumb") mode.
+#ifdef EN_SERIAL	
+		// Check if previously operated in serial linked mode and link dropped out.
+		if(u8_link_state!=LST_STOP)
+		{
+			// Reset out all serial link related variables.
+			u8_link_state = LST_STOP;
+			u8_ser_error = ERR_LOST_LINK;
+			u8_ser_mode_dly = 0;
+			u8_vtr_mode = 0;
+			u8_ser_byte_cnt = u8_ser_bit_cnt = 0;
+			DBG_3_OFF;
+			// Clear record lock.
+			u8_state &= ~STATE_REC_LOCK;
+		}
 #endif	/* EN_SERIAL */
 		// Process events from lowest priority to highest priority.
 		// Check video direction managed by VTR.
@@ -1263,19 +1303,19 @@ int main(void)
 			//if((u8_inputs&LINP_VTR_PB)==0)
 			//if(u8_vid_dir_dly!=0)
 			//if((u8_state&STATE_REC_LOCK)!=0)
-			if((u8_state&STATE_LOW_BATT)!=0)
-			{
+			//if((u8_state&STATE_LOW_BATT)!=0)
+			/*{
 				DBG_1_ON;
 			}
 			else
 			{
 				DBG_1_OFF;
-			}
+			}*/
 			
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
 			//if((u8_state&STATE_SERIAL_DET)!=0)
-			if((u8_state&STATE_CAM_OFF)!=0)
+			if((u8_state&STATE_SERIAL_DET)!=0)
 			{
 				DBG_2_ON;
 			}
@@ -1298,11 +1338,27 @@ int main(void)
 			{
 				u8_tasks&=~TASK_2HZ;
 				// 2 Hz event, 500 ms period.
-				//DBG_3_TGL;
+				DBG_1_TGL;
 				// Reset watchdog timer.
 				wdt_reset();
 				// Manage timing of certain states.
 				slow_state_timing();
+			}
+			if((u8_tasks&TASK_5HZ_PH1)!=0)
+			{
+				u8_tasks&=~TASK_5HZ_PH1;
+				// 5 Hz event (phase 1), 200 ms period.
+				filter_adc_ph1();
+			}
+			if((u8_tasks&TASK_5HZ_PH2)!=0)
+			{
+				u8_tasks&=~TASK_5HZ_PH2;
+				// 5 Hz event (phase 2), 200 ms period.
+				filter_adc_ph2();
+				// Check state of incoming power.
+				input_power_check();
+				// Calculate camera power consumption.
+				camera_power_check();
 			}
 			if((u8_tasks&TASK_50HZ)!=0)
 			{
@@ -1310,11 +1366,7 @@ int main(void)
 				//DBG_2_ON;
 				// 50 Hz event, 20 ms period.
 				// Perform history update and filtering for ADC.
-				filter_adc();
-				// Check state of incoming power.
-				input_power_check();
-				// Calculate camera power consumption.
-				camera_power_check();
+				buffer_adc();
 				// Read logic inputs.
 				read_inputs();
 				// Process inputs and produce outputs.
