@@ -49,10 +49,10 @@ Hardware defines (pseudo-HAL) and setup routines.
 
 // VID_SW - PB1 (out)
 
-// CAM_LIGHT - PD3 (out)
-// CAM_VID - PD2 (out)
-// CAM_REC - PD4 (in)
-// CAM_RR - PD0 (in)
+// CAM_LIGHT - PD3 (out) - PD0 (out)
+// CAM_VID - PD2 (out) - PD4 (out)
+// CAM_REC - PD4 (in) - PD3 (in)
+// CAM_RR - PD0 (in) - PD2 (in)
 
 // VTR_VID - PB0 (in)
 // VTR_REC - PD5 (out)
@@ -107,7 +107,7 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define CAM_REC_PORT	PORTD
 #define CAM_REC_DIR		DDRD
 #define CAM_REC_SRC		PIND
-#define CAM_REC_PIN		(1<<4)
+#define CAM_REC_PIN		(1<<3)
 #define CAM_REC_STATE	(CAM_REC_SRC&CAM_REC_PIN)
 #define CAM_REC_HIGH	(CAM_REC_STATE!=0)
 #define CAM_REC_LOW		(CAM_REC_STATE==0)
@@ -115,21 +115,21 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define CAM_RR_PORT		PORTD
 #define CAM_RR_DIR		DDRD
 #define CAM_RR_SRC		PIND
-#define CAM_RR_PIN		(1<<0)
+#define CAM_RR_PIN		(1<<2)
 #define CAM_RR_STATE	(CAM_RR_SRC&CAM_RR_PIN)
 #define CAM_RR_UP		(CAM_RR_STATE!=0)
 #define CAM_RR_DOWN		(CAM_RR_STATE==0)
 // Camera record/battery light (tally) output.
 #define CAM_LED_PORT	PORTD
 #define CAM_LED_DIR		DDRD
-#define CAM_LED_PIN		(1<<3)
+#define CAM_LED_PIN		(1<<0)
 #define CAM_LED_ON		(CAM_LED_PORT|=CAM_LED_PIN)
 #define CAM_LED_OFF		(CAM_LED_PORT&=~CAM_LED_PIN)
 #define CAM_LED_TGL		(CAM_LED_PORT^=CAM_LED_PIN)
 // Camera video selector output.
 #define CAM_VID_PORT	PORTD
 #define CAM_VID_DIR		DDRD
-#define CAM_VID_PIN		(1<<2)
+#define CAM_VID_PIN		(1<<4)
 #define CAM_VID_PB		(CAM_VID_PORT|=CAM_VID_PIN)
 #define CAM_VID_REC		(CAM_VID_PORT&=~CAM_VID_PIN)
 

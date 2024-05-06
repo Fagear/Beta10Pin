@@ -25,7 +25,7 @@ Defines/switches for configuring compile-time options.
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-// Allow standby operations
+// Allow wired standby operations
 #define EN_STANDBY
 
 // Allow camera power detection
