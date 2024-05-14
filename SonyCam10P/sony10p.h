@@ -17,6 +17,8 @@ limitations under the License.
 
 Created: 2024-04-21
 
+Part of the [SonyCam10P] project.
+
 **************************************************************************************************************************************************************/
 
 #ifndef SONY10P_H_
@@ -98,6 +100,9 @@ enum
 	TIME_SER_TO		= 150,			// 300 ms maximum time after last serial transmittion before link is lost
 	TIME_SER_C_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
 	TIME_SER_C_RP	= 240,			// 120 s delay before going into standby from paused recording
+	TIME_SER_C_PLP	= 20,			// 10 s maximum time for VTR to go to switch from recording+pause to playback+pause
+	TIME_SER_C_PL_D	= 2,			// 1 s delay in playback+pause before starting to playing backwards
+	TIME_SER_C_RC_D	= 5,			// 2.5 s delay in playback+pause before returning to record
 	TIME_SER_C_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
 };
 
@@ -108,9 +113,14 @@ enum
 	LST_STOP,						// Initial state before any record or if errored out of record mode
 	LST_INH_CHECK,					// Record commanded from camera, checking if it is possible
 	LST_REC_RDY,					// Recording granted, indicating, no actual recording
-	LST_REC_PAUSE,					// Pause recording
+	LST_REC_PAUSE,					// Paused recording
 	LST_RECORD,						// Recording
 	LST_REC_PWRSV,					// Pause recording with powersave
+	LST_SW_PB,						// Switching from record to playback (RR)
+	LST_PB_PAUSE,					// Paused playback
+	LST_PB_REW,						// Playback review
+	LST_PB_HOLD,					// Paused playback (hold)
+	LST_SW_REC,						// Switching from playback to record
 	LST_ERROR,						// Errored out of normal operation (temporary mode)
 };
 
@@ -123,6 +133,7 @@ enum
 	ERR_REC_TIMEOUT,				// Unable to start recording in reasonable time
 	ERR_CTRL_FAIL,					// Lost mode control of the VTR
 	ERR_LOST_LINK,					// Lost link with VTR
+	ERR_LOGIC_FAIL,					// Logic failed into impossible state
 };
 
 #define	SER_BYTE_LEN		8		// Number of bits in a byte
@@ -157,7 +168,7 @@ enum
 	SCMD_SPD_UP		= 0b00101110,	// Step speed up for slow playback
 	SCMD_SPD_DN		= 0b00101111,	// Step speed down for slow playback
 	SCMD_STBY		= 0b10010110,	// Stand by
-	SCMD_RCPB		= 0b10011010,	// Select record/playback
+	SCMD_RCPB		= 0b10011010,	// Switch from record to playback
 	SCMD_IDLE		= 0b11111111,	// No command (three in a row and VTR switches clock off)
 };
 
@@ -204,7 +215,6 @@ enum
 
 void sort_array(uint8_t *arr_ptr);
 void load_serial_cmd(uint8_t new_cmd);
-void go_to_rec_paused(void);
 void go_to_powersave(void);
 void go_to_error(uint8_t err_code);
 int main(void);

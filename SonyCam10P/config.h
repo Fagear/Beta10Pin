@@ -17,7 +17,8 @@ limitations under the License.
 
 Created: 2021-04-13
 
-Configuration file.
+Part of the [SonyCam10P] project.
+Pre-compile configuration file.
 Defines/switches for configuring compile-time options.
 
 **************************************************************************************************************************************************************/

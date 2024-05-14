@@ -17,7 +17,10 @@ limitations under the License.
 
 Created: 2024-04-21
 
-Hardware defines (pseudo-HAL) and setup routines.
+Part of the [SonyCam10P] project.
+Hardware defines (pseudo-HAL) and setup routines for AVR MCUs and AVRStudio/WinAVR/AtmelStudio compilers.
+
+Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATmega328(-/P).
 
 **************************************************************************************************************************************************************/
 
@@ -136,10 +139,10 @@ Hardware defines (pseudo-HAL) and setup routines.
 // Debug outputs.
 #define DBG_PORT		PORTB
 #define DBG_DIR			DDRB
-#define DBG_1_PIN		(1<<5)
-#define DBG_2_PIN		(1<<4)
-#define DBG_3_PIN		(1<<3)
-#define DBG_4_PIN		(1<<2)
+#define DBG_1_PIN		(1<<5)							// Used to indicate NV-180 mechanical record state (in production)
+#define DBG_2_PIN		(1<<4)							// Used to indicate alive firmware and serial link status (in production)
+#define DBG_3_PIN		(1<<3)							// Used to indicate duration of serial transmission (in production)
+#define DBG_4_PIN		(1<<2)							// Used for PWM of camera power level (in production)
 #define DBG_1_ON		(DBG_PORT|=DBG_1_PIN)
 #define DBG_1_OFF		(DBG_PORT&=~DBG_1_PIN)
 #define DBG_1_TGL		(DBG_PORT^=DBG_1_PIN)

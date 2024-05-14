@@ -40,28 +40,29 @@ The main target VTR is **Panasonic/National NV-180** which has a small footprint
 
 Why not just use CMA-1010?
 
-It's quite hard to find, it's pretty big, it has thick and stiff cable and does not support all features of Sony Beta cameras.
+It's quite hard to find, it's pretty big, it has thick and stiff cable and does not support all features of Sony Beta cameras and features of serial link control for NV-180.
 
 ## Features
 
 - Provides power from VTR to a Beta Camera
 - Allows video and audio to be transfered from a camera to a VTR when VTR is in record mode
 - Allows video from VTR to be displayed in a camera's viewfinder when VTR is in playback mode
-- Converts level and pulse record commands from camera to level "unpause" signal for VTR
+- Converts level and pulse pause commands from camera to level "unpause" signal for VTR (camera record button mode is auto-detected)
+- Allows "Record review" mode (via "RR" button) through backwards picture search
 - Monitors input voltage and indicates low battery by blinking tally light in a camera
 - Monitors camera's power consumption and puts VTR in pause and stand by to preserve energy
-- Allows powering camera from USB-C PD/QC source
-- Outputs video through RCA if not connected to a VTR through 10-pin EIAJ connector
+- Allows powering camera without VTR from USB-C PD/QC source
+- Outputs video and audio through 2xRCA if not connected to a VTR through 10-pin EIAJ connector
 
 ## Firmware
 
-Adapter utilizes **Atmel AVR** MCU for logic and voltage measurement.
+Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement.
 
 Target MCU is **ATmega 48** (either variant). But firmware should be compilable and working on **ATmega 88/168/328** variants as well.
 
 MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing.
 
-Due to dependance on ADC measurements and proper connection with MCU should run on voltages from **4.5 V** to **5.0 V**.
+Due to dependance on ADC measurements and proper serial connection with VTR MCU should run on voltages from **4.5 V** to **5.0 V**.
 
 <details>
 <summary>AVR fuse information</summary>
@@ -102,10 +103,11 @@ In hex form:
 - Working voltage monitoring and indication in camera
 - Working camera connection detection and NV-180 standby function operation
 - Working serial link detection and RX/TX
+- Working state machine while communicating with NV-180 VTRs through serial link
+- Working "record review" processing
 
 ## Plans
 
-- Add state machine to operate NV-180 VTRs through serial link
 - Test adapter with other VTRs (without serial link and standby control)
 
 ## License
