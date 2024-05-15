@@ -35,12 +35,14 @@ Defines/switches for configuring compile-time options.
 // Allow operation over Panasonic serial link
 #define EN_SERIAL
 
+// Get size of the ROM in the MCU
 #ifdef FLASHSTART
 	#define MCU_ROM_SIZE	(FLASHEND - FLASHSTART)
 #else
 	#define MCU_ROM_SIZE	FLASHEND
 #endif
 
+// Check for 4K MCUs
 #undef MCU_LOW_ROM
 #if MCU_ROM_SIZE<0x1000
 	#warning Low flash ROM, some features are disabled!

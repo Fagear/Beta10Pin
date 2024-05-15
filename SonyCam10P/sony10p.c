@@ -273,7 +273,7 @@ ISR(VTR_SER_INT)
 		{
 			// Start of the new packed transmission after a pause.
 			// Indicate start of the transmission.
-			DBG_3_ON;
+			DBG_SER_RX_ON;
 			// Reset bit (MSB first) and byte counters.
 			u8_ser_byte_cnt = 0;
 			u8_ser_bit_cnt = (1<<SER_LAST_BIT);
@@ -347,7 +347,7 @@ ISR(SERT_INT)
 		u8i_interrupts &= ~(INTR_SERIAL|INTR_TALLY);
 	}
 	// Indicate end of the transmission.
-	DBG_3_OFF;
+	DBG_SER_RX_OFF;
 }
 #endif	/* EN_SERIAL */
 
@@ -838,6 +838,20 @@ static inline void state_machine(void)
 	if((u8_state&STATE_SERIAL_DET)!=0)
 	{
 		// Serial link is present, operating in serial linked mode.
+		u8_state &= ~(STATE_LNK_REC_P|STATE_LNK_REC);
+		// Check if VTR is in paused recording (stable).
+		if(((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC_P)&&
+			((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_RECP))
+		{
+			u8_state |= STATE_LNK_REC_P;
+		}
+		// Check if VTR is recording (stable).
+		if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_REC)||
+			((((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC))&&
+			(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_M_RUN))))
+		{
+			u8_state |= STATE_LNK_REC;
+		}
 		// Check video direction managed by VTR.
 		if((u8_inputs&LINP_VTR_PB)!=0)
 		{
@@ -929,8 +943,7 @@ static inline void state_machine(void)
 				u8_link_state = LST_STOP;
 			}
 			// Check if VTR settled in record+pause mode.
-			else if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_RECP)||
-					((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_REC))
+			else if((u8_state&STATE_LNK_REC_P)!=0)
 			{
 				// Progress to the "recording ready" state.
 				u8_link_state = LST_REC_RDY;
@@ -979,9 +992,7 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			else if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1009,7 +1020,7 @@ static inline void state_machine(void)
 				// Enable pause for VTR and turn off tally light.
 				u8_outputs &= ~(OUT_VTR_RUN|OUT_CAM_LED);
 				// Check mechanical mode again.
-				if((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC_P)
+				if((u8_state&STATE_LNK_REC_P)!=0)
 				{
 					// Record+pause mode reached.
 					// Check battery level.
@@ -1042,9 +1053,7 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-					((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			else if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1062,14 +1071,14 @@ static inline void state_machine(void)
 				// (when VTR returns from standby it ignores pause pin in camera connector
 				// until VTR re-initializes record mode
 				// and then it gets stuck in record+pause with pin telling to "run")
-				if((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC_P)
+				if((u8_state&STATE_LNK_REC_P)!=0)
 				{
 					// Disable pause.
 					u8_outputs |= OUT_VTR_RUN;
 				}
-				else if((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC)
+				else if((u8_state&STATE_LNK_REC)!=0)
 				{
-					// // Disable pause and enable tally light.
+					// Disable pause and enable tally light.
 					u8_outputs |= (OUT_VTR_RUN|OUT_CAM_LED);
 					// Check battery level.
 					if((u8_state&STATE_LOW_BATT)!=0)
@@ -1095,9 +1104,7 @@ static inline void state_machine(void)
 			load_serial_cmd(SCMD_STBY);
 			// Check if state needs to be changed.
 			// Check mechanical mode.
-			if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1256,8 +1263,7 @@ static inline void state_machine(void)
 				go_to_error(ERR_MODE_TIMEOUT);
 			}
 			// Check if VTR settled in record+pause.
-			else if(((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC_P)&&
-					((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_RECP))
+			else if((u8_state&STATE_LNK_REC_P)!=0)
 			{
 				// Progress to the "record+pause" state.
 				go_to_rec_paused();
@@ -1331,7 +1337,7 @@ static inline void state_machine(void)
 			u8_vtr_mode = 0;
 			u8_ser_byte_cnt = u8_ser_bit_cnt = 0;
 			// Indicate end of the transmission.
-			DBG_3_OFF;
+			DBG_SER_RX_OFF;
 			// Clear record lock.
 			u8_state &= ~STATE_REC_LOCK;
 		}
@@ -1494,7 +1500,7 @@ int main(void)
 		sei();
 		
 		// Transfer serial link flag to the state.
-		u8_state &= ~STATE_SERIAL_DET;
+		u8_state &= ~(STATE_SERIAL_DET);
 #ifdef EN_SERIAL
 		if((u8_buf_interrupts&INTR_SERIAL)!=0)
 		{
@@ -1525,10 +1531,6 @@ int main(void)
 			//DBG_PWM = u8_volt_12v;
 			DBG_PWM = u8_cam_pwr;
 			
-			//if((u8_inputs&LINP_VTR_PB)==0)
-			//if(u8_vid_dir_dly!=0)
-			//if((u8_state&STATE_REC_LOCK)!=0)
-			//if((u8_state&STATE_LOW_BATT)!=0)
 #ifndef MCU_LOW_ROM
 #ifdef EN_SERIAL
 			// Check if serial link is established.
@@ -1536,50 +1538,50 @@ int main(void)
 			{
 				// No serial link, operating in "dumb" mode.
 				// Check pause output state.
-				if((u8_outputs&OUT_VTR_RUN)==0)
+				if((u8_outputs&OUT_VTR_RUN)!=0)
 				{
-					DBG_1_ON;
+					DBG_RECERR_ON;
 				}
 				else
 				{
-					DBG_1_OFF;
+					DBG_RECERR_OFF;
 				}
 			}
 			// Serial link present, check VTR's record state.
-			else if((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_REC)
+			else if((u8_state&STATE_LNK_REC)!=0)
 			{
-				DBG_1_ON;
+				DBG_RECERR_ON;
 			}
 			// Serial link present, VTR not recording,
 			// check errors within serial control.
-			else if((u8_ser_error!=ERR_ALL_OK)&&
-					(u8_ser_error>u8_blink_cnt))
+			else if(u8_ser_error>u8_blink_cnt)
 			{
 				// Blink error code.
 				if((u8_tasks&TASK_FAST_BLINK)!=0)
 				{
-					DBG_1_ON;
+					DBG_RECERR_ON;
 				}
 				else
 				{
-					DBG_1_OFF;
+					DBG_RECERR_OFF;
 				}
 			}
 			else
 			{
-				DBG_1_OFF;
+				DBG_RECERR_OFF;
 			}
 #else
-			if((u8_outputs&OUT_VTR_RUN)==0)
+			if((u8_outputs&OUT_VTR_RUN)!=0)
 			{
-				DBG_1_ON;
+				DBG_RECERR_ON;
 			}
 			else
 			{
-				DBG_1_OFF;
+				DBG_RECERR_OFF;
 			}
 #endif	/* EN_SERIAL */			
 #endif	/* MCU_LOW_ROM */
+
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
 			//if((u8_state&STATE_SERIAL_DET)!=0)
@@ -1590,7 +1592,10 @@ int main(void)
 			{
 				DBG_2_OFF;
 			}*/
-			
+			//if((u8_inputs&LINP_VTR_PB)==0)
+			//if(u8_vid_dir_dly!=0)
+			//if((u8_state&STATE_REC_LOCK)!=0)
+			//if((u8_state&STATE_LOW_BATT)!=0)
 			//if((u8_state&STATE_REC_LOCK)!=0)
 			/*{
 				DBG_3_ON;
@@ -1608,7 +1613,7 @@ int main(void)
 				if((u8_state&STATE_SERIAL_DET)==0)
 				{
 					// Slow heartbeat: FW alive, but no serial link.
-					DBG_2_TGL;
+					DBG_HRBT_TGL;
 				}
 				// Reset watchdog timer.
 				wdt_reset();
@@ -1622,7 +1627,7 @@ int main(void)
 				if((u8_state&STATE_SERIAL_DET)!=0)
 				{
 					// Fast heartbeat: FW alive, serial link is OK.
-					DBG_2_TGL;
+					DBG_HRBT_TGL;
 				}
 				// Filter ADC data from 12 V input channel.
 				filter_adc_ph1();

@@ -55,6 +55,8 @@ Part of the [SonyCam10P] project.
 #define	STATE_CAM_OFF		(1<<1)	// Camera is not connected or is in power save mode
 #define	STATE_LOW_BATT		(1<<2)	// Incoming power has too low voltage
 #define	STATE_SERIAL_DET	(1<<3)	// Serial link present
+#define	STATE_LNK_REC_P		(1<<4)	// VTR is in serial linked mode and in paused recording
+#define	STATE_LNK_REC		(1<<5)	// VTR is in serial linked mode and recording
 
 // Voltage thresholds.
 enum
@@ -96,8 +98,8 @@ enum
 	TIME_CMD		= 100,			// 200 ms duration on the new serial command to the VTR
 	TIME_SER_CLK	= 12,			// 96 us maximum time between falling edges in single byte transmission
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
-	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 	TIME_SER_TO		= 150,			// 300 ms maximum time after last serial transmittion before link is lost
+	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 	TIME_SCMD_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
 	TIME_REC_P_MAX	= 240,			// 120 s delay before going into standby from paused recording
 	TIME_SCMD_2REC	= 12,			// 6 s maximum time for VTR to go to switch from recording+pause to playback+pause

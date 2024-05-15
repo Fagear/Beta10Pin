@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 drv_cpu.h
 
-Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
+Copyright ï¿½ 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ For AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
 #define SLEEP		asm volatile("sleep\n")		// Enter sleep mode.
 
 // Simple interrupt header and footer if [ISR_NAKED] is used.
-#define INTR_IN		asm volatile("push	r0\nin	r0, 0x3f\npush	r24\n")				
+#define INTR_IN		asm volatile("push	r0\nin	r0, 0x3f\npush	r24\n")
 #define INTR_OUT	asm volatile("pop	r24\nout	0x3f, r0\npop	r0\nreti\n")
 #define INTR_OUT_S	asm volatile("reti\n")
 

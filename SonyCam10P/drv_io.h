@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 drv_io.h
 
-Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
+Copyright ï¿½ 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,33 +29,16 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 
 #include <avr/io.h>
 
-// Debugging:
-// ADC_12V - PC0 (in)
-// ADC_CAM - PC1 (in)
-
-// VID_SW - PB0 (out)
-
-// CAM_LIGHT - PD7 (out)
-// CAM_VID - PD2 (out)
-// CAM_REC - PD6 (in)
-// CAM_RR - PD5 (in)
-
-// VTR_VID - PB1 (in)
-// VTR_REC - PD4 (out)
-// VTR_STBY - PD3 (out)
-// VTR_SCLK - PD1 (in)
-// VTR_SDAT - PD0 (in/out)
-
 // Production PCB:
 // ADC_12V - PC0 (in)
 // ADC_CAM - PC1 (in)
 
 // VID_SW - PB1 (out)
 
-// CAM_LIGHT - PD3 (out) - PD0 (out)
-// CAM_VID - PD2 (out) - PD4 (out)
-// CAM_REC - PD4 (in) - PD3 (in)
-// CAM_RR - PD0 (in) - PD2 (in)
+// CAM_LIGHT - PD0 (out)
+// CAM_VID - PD4 (out)
+// CAM_REC - PD3 (in)
+// CAM_RR - PD2 (in)
 
 // VTR_VID - PB0 (in)
 // VTR_REC - PD5 (out)
@@ -75,8 +58,8 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define VTR_SER_PORT	PORTD
 #define VTR_SER_DIR		DDRD
 #define VTR_SER_SRC		PIND
-#define VTR_SCLK_BIT	(1<<7)
-#define VTR_SDAT_BIT	(1<<1)
+#define VTR_SCLK_BIT	(1<<7)							// Linked with EIAJ pin 4
+#define VTR_SDAT_BIT	(1<<1)							// Linked with EIAJ pin 3
 #define VTR_SCLK_STATE	(VTR_SER_SRC&VTR_SCLK_BIT)
 #define VTR_SDAT_STATE	(VTR_SER_SRC&VTR_SDAT_BIT)
 #define VTR_SDAT_IN		(VTR_SER_DIR&=~VTR_SDAT_BIT)
@@ -89,20 +72,20 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define VTR_VID_PORT	PORTB
 #define VTR_VID_DIR		DDRB
 #define VTR_VID_SRC		PINB
-#define VTR_VID_BIT		(1<<0)							// ~0 VDC if input, ~7 VDC if output
+#define VTR_VID_BIT		(1<<0)							// Linked with EIAJ pin 1 (~0 VDC if input, ~7 VDC if output)
 #define VTR_VID_STATE	(VTR_VID_SRC&VTR_VID_BIT)
 #define VTR_VID_PB		(VTR_VID_STATE!=0)
 #define VTR_VID_REC		(VTR_VID_STATE==0)
 // Standby output for NV-180 VTR.
 #define VTR_STBY_PORT	PORTD
 #define VTR_STBY_DIR	DDRD
-#define VTR_STBY_BIT	(1<<6)
+#define VTR_STBY_BIT	(1<<6)							// Linked with EIAJ pin 5
 #define VTR_STBY_ON		(VTR_STBY_PORT|=VTR_STBY_BIT)
 #define VTR_STBY_OFF	(VTR_STBY_PORT&=~VTR_STBY_BIT)
 // Rec/play output for 10-pin VTR connector.
 #define VTR_REC_PORT	PORTD
 #define VTR_REC_DIR		DDRD
-#define VTR_REC_BIT		(1<<5)
+#define VTR_REC_BIT		(1<<5)							// Linked with EIAJ pin 6
 #define VTR_REC_RUN		(VTR_REC_PORT|=VTR_REC_BIT)
 #define VTR_REC_PAUSE	(VTR_REC_PORT&=~VTR_REC_BIT)
 
@@ -110,7 +93,7 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define CAM_REC_PORT	PORTD
 #define CAM_REC_DIR		DDRD
 #define CAM_REC_SRC		PIND
-#define CAM_REC_PIN		(1<<3)
+#define CAM_REC_PIN		(1<<3)							// Linked with Beta K-type pin 5
 #define CAM_REC_STATE	(CAM_REC_SRC&CAM_REC_PIN)
 #define CAM_REC_HIGH	(CAM_REC_STATE!=0)
 #define CAM_REC_LOW		(CAM_REC_STATE==0)
@@ -118,30 +101,30 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define CAM_RR_PORT		PORTD
 #define CAM_RR_DIR		DDRD
 #define CAM_RR_SRC		PIND
-#define CAM_RR_PIN		(1<<2)
+#define CAM_RR_PIN		(1<<2)							// Linked with Beta K-type pin 8
 #define CAM_RR_STATE	(CAM_RR_SRC&CAM_RR_PIN)
 #define CAM_RR_UP		(CAM_RR_STATE!=0)
 #define CAM_RR_DOWN		(CAM_RR_STATE==0)
 // Camera record/battery light (tally) output.
 #define CAM_LED_PORT	PORTD
 #define CAM_LED_DIR		DDRD
-#define CAM_LED_PIN		(1<<0)
+#define CAM_LED_PIN		(1<<0)							// Linked with Beta K-type pin 6
 #define CAM_LED_ON		(CAM_LED_PORT|=CAM_LED_PIN)
 #define CAM_LED_OFF		(CAM_LED_PORT&=~CAM_LED_PIN)
 #define CAM_LED_TGL		(CAM_LED_PORT^=CAM_LED_PIN)
 // Camera video selector output.
 #define CAM_VID_PORT	PORTD
 #define CAM_VID_DIR		DDRD
-#define CAM_VID_PIN		(1<<4)							// 2...4 VDC turns on video input
+#define CAM_VID_PIN		(1<<4)							// Linked with Beta K-type pin 3 (2...4 VDC turns on video input)
 #define CAM_VID_PB		(CAM_VID_PORT|=CAM_VID_PIN)
 #define CAM_VID_REC		(CAM_VID_PORT&=~CAM_VID_PIN)
 
 // Debug outputs.
 #define DBG_PORT		PORTB
 #define DBG_DIR			DDRB
-#define DBG_1_PIN		(1<<5)							// Used to indicate NV-180 mechanical record state (in production)
-#define DBG_2_PIN		(1<<4)							// Used to indicate alive firmware and serial link status (in production)
-#define DBG_3_PIN		(1<<3)							// Used to indicate duration of serial transmission (in production)
+#define DBG_1_PIN		(1<<5)
+#define DBG_2_PIN		(1<<4)
+#define DBG_3_PIN		(1<<3)
 #define DBG_4_PIN		(1<<2)							// Used for PWM of camera power level (in production)
 #define DBG_1_ON		(DBG_PORT|=DBG_1_PIN)
 #define DBG_1_OFF		(DBG_PORT&=~DBG_1_PIN)
@@ -153,6 +136,11 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define DBG_3_OFF		(DBG_PORT&=~DBG_3_PIN)
 #define DBG_3_TGL		(DBG_PORT^=DBG_3_PIN)
 #define DBG_PWM			OCR1B
+#define DBG_HRBT_TGL	DBG_2_TGL						// Used to indicate alive firmware and serial link status (in production)
+#define DBG_RECERR_ON	DBG_3_OFF						// Used to indicate NV-180 mechanical record state (in production)
+#define DBG_RECERR_OFF	DBG_3_ON
+#define DBG_SER_RX_ON	DBG_1_ON						// Used to indicate duration of serial transmission (in production)
+#define DBG_SER_RX_OFF	DBG_1_OFF
 
 // Power supply ADC inputs.
 #define ADC_INT			ADC_vect						// Interrupt vector alias
@@ -182,7 +170,7 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 // System timer setup.
 #define SYST_INT			TIMER2_COMPA_vect			// Interrupt vector alias
 #define SYST_CONFIG1		TCCR2A=(1<<WGM21)			// CTC mode (clear on compare with OCR)
-#define SYST_CONFIG2		TCCR2B=0		
+#define SYST_CONFIG2		TCCR2B=0
 #define SYST_CONFIG3		OCR2A=124					// Cycle clock: clk/(1+124), 1000 Hz cycle
 #define SYST_EN_INTR		TIMSK2|=(1<<OCIE2A)			// Enable interrupt
 #define SYST_DIS_INTR		TIMSK2&=~(1<<OCIE2A)		// Disable interrupt
@@ -225,7 +213,7 @@ inline void HW_init(void)
 #endif /* EN_WIRED_STANDBY */
 	CAM_LED_PORT &= ~CAM_LED_PIN;	CAM_LED_DIR |= CAM_LED_PIN;		// Camera record/battery indicator control.
 	CAM_VID_PORT &= ~CAM_VID_PIN;	CAM_VID_DIR |= CAM_VID_PIN;		// Camera viewfinder video select control.
-	
+
 	// Init inputs.
 	CAM_REC_PORT |= CAM_REC_PIN;	CAM_REC_DIR &= ~CAM_REC_PIN;	// Camera record button input.
 	CAM_RR_PORT |= CAM_RR_PIN;		CAM_RR_DIR &= ~CAM_RR_PIN;		// Camera RR button input.
@@ -239,13 +227,13 @@ inline void HW_init(void)
 #endif	/* EN_SERIAL */
 	ADC_PORT &= ~ADC_12V_PIN;		ADC_DIR &= ~ADC_12V_PIN;		// ADC input power supply measurement pin.
 	ADC_PORT &= ~ADC_CAM_PIN;		ADC_DIR &= ~ADC_CAM_PIN;		// ADC camera supply measurement pin.
-	
+
 	// System timing.
 	SYST_CONFIG1; SYST_CONFIG2; SYST_CONFIG3;
 	SYST_RESET;
 	SYST_EN_INTR;
 
-#ifdef EN_SERIAL	
+#ifdef EN_SERIAL
 	// Serial link timing.
 	SERT_CONFIG1; SERT_CONFIG2;
 	SERT_RESET;
@@ -254,11 +242,11 @@ inline void HW_init(void)
 	// Serial link interrupts.
 	VTR_SER_CONFIG1; VTR_SER_CONFIG2;
 #endif	/* EN_SERIAL */
-	
+
 	// ADC configuration.
 	ADC_CONFIG1; ADC_CONFIG2;
 	ADC_PWR_SAVE;
-	
+
 	// Debug outputs.
 	DBG_PORT &= ~(DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 	DBG_DIR |= (DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
@@ -269,7 +257,7 @@ inline void HW_init(void)
 	OCR1B = 0;
 	TCCR1A = (1<<COM1B1)|(1<<WGM10);								// Fast non-inverting 8-bit PWM
 	TCCR1B = (1<<WGM12)|(0<<CS12)|(0<<CS11)|(1<<CS10);				// Start timer with clk/1 clock (8 MHz), 31.25 kHz cycle
-	
+
 	// Turn off unused modules for power saving.
 	PWR_COMP_OFF;
 	PWR_SAVE |= (PWR_I2C_OFF|PWR_SPI_OFF|PWR_UART_OFF);
