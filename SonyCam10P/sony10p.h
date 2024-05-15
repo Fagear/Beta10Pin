@@ -98,16 +98,15 @@ enum
 	TIME_SER_IB		= 64,			// 512 us maximum time between last bit of previous byte and first bit of current byte
 	TIME_SER_MAX	= 250,			// Marker for "timer has overflown and stopped"
 	TIME_SER_TO		= 150,			// 300 ms maximum time after last serial transmittion before link is lost
-	TIME_SER_C_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
-	TIME_SER_C_RP	= 240,			// 120 s delay before going into standby from paused recording
-	TIME_SER_C_PLP	= 20,			// 10 s maximum time for VTR to go to switch from recording+pause to playback+pause
-	TIME_SER_C_PL_D	= 2,			// 1 s delay in playback+pause before starting to playing backwards
-	TIME_SER_C_RC_D	= 5,			// 2.5 s delay in playback+pause before returning to record
-	TIME_SER_C_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
+	TIME_SCMD_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
+	TIME_REC_P_MAX	= 240,			// 120 s delay before going into standby from paused recording
+	TIME_SCMD_2REC	= 12,			// 6 s maximum time for VTR to go to switch from recording+pause to playback+pause
+	TIME_SCMD_REV_I	= 4,			// 2 s delay in playback+pause before starting to playing backwards
+	TIME_SCMD_REV_O	= 6,			// 3 s delay in playback+pause before returning to record
+	TIME_SCMD_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
 };
 
 // Logic states for operating with serial link.
-// TODO: Rec Review processing (unable to test due to faulty camera cable)
 enum
 {
 	LST_STOP,						// Initial state before any record or if errored out of record mode
@@ -130,7 +129,7 @@ enum
 	ERR_ALL_OK,						// No error registered
 	ERR_NO_TAPE,					// No tape in the VTR
 	ERR_REC_INHIBIT,				// Inserted tape is protected from recording	
-	ERR_REC_TIMEOUT,				// Unable to start recording in reasonable time
+	ERR_MODE_TIMEOUT,				// Unable to switch to target mode in a reasonable time
 	ERR_CTRL_FAIL,					// Lost mode control of the VTR
 	ERR_LOST_LINK,					// Lost link with VTR
 	ERR_LOGIC_FAIL,					// Logic failed into impossible state
@@ -168,7 +167,7 @@ enum
 	SCMD_SPD_UP		= 0b00101110,	// Step speed up for slow playback
 	SCMD_SPD_DN		= 0b00101111,	// Step speed down for slow playback
 	SCMD_STBY		= 0b10010110,	// Stand by
-	SCMD_RCPB		= 0b10011010,	// Switch from record to playback
+	SCMD_REC2PB		= 0b10011010,	// Switch from record to playback
 	SCMD_IDLE		= 0b11111111,	// No command (three in a row and VTR switches clock off)
 };
 
@@ -202,7 +201,7 @@ enum
 	STTR_LN_ADUB_P	= 0b00001101,	// Low nibble for AUDIO DUB+PAUSE
 	STTR_LN_VADD	= 0b00001110,	// Low nibble for VIDEO ADD
 	STTR_LN_VADD_P	= 0b00001111,	// Low nibble for VIDEO ADD+PAUSE
-	STTR_HN_MASK	= 0xF0,			// Mask for the high nibble
+	STTR_HN_MASK	= 0x70,			// Mask for the high nibble
 	STTR_HN_S_STOP	= 0b00000000,	// High nibble for stable mechanical STOP (with a tape inside)
 	STTR_HN_S_FAST	= 0b00010000,	// High nibble for stable mechanical EJECT/STOP (with no tape)/REWIND/FAST FORWARD
 	STTR_HN_P_STOP	= 0b00100000,	// High nibble for moving to STOP

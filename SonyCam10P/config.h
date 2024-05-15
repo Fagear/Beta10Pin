@@ -27,12 +27,24 @@ Defines/switches for configuring compile-time options.
 #define CONFIG_H_
 
 // Allow wired standby operations
-#define EN_STANDBY
+#define EN_WIRED_STANDBY
 
 // Allow camera power detection
 #define EN_CAM_PWR_DEF
 
 // Allow operation over Panasonic serial link
 #define EN_SERIAL
+
+#ifdef FLASHSTART
+	#define MCU_ROM_SIZE	(FLASHEND - FLASHSTART)
+#else
+	#define MCU_ROM_SIZE	FLASHEND
+#endif
+
+#undef MCU_LOW_ROM
+#if MCU_ROM_SIZE<0x1000
+	#warning Low flash ROM, some features are disabled!
+	#define MCU_LOW_ROM
+#endif
 
 #endif /* CONFIG_H_ */

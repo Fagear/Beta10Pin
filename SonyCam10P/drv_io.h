@@ -89,7 +89,7 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define VTR_VID_PORT	PORTB
 #define VTR_VID_DIR		DDRB
 #define VTR_VID_SRC		PINB
-#define VTR_VID_BIT		(1<<0)
+#define VTR_VID_BIT		(1<<0)							// ~0 VDC if input, ~7 VDC if output
 #define VTR_VID_STATE	(VTR_VID_SRC&VTR_VID_BIT)
 #define VTR_VID_PB		(VTR_VID_STATE!=0)
 #define VTR_VID_REC		(VTR_VID_STATE==0)
@@ -132,7 +132,7 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 // Camera video selector output.
 #define CAM_VID_PORT	PORTD
 #define CAM_VID_DIR		DDRD
-#define CAM_VID_PIN		(1<<4)
+#define CAM_VID_PIN		(1<<4)							// 2...4 VDC turns on video input
 #define CAM_VID_PB		(CAM_VID_PORT|=CAM_VID_PIN)
 #define CAM_VID_REC		(CAM_VID_PORT&=~CAM_VID_PIN)
 
@@ -218,11 +218,11 @@ inline void HW_init(void)
 	// Init outputs.
 	RLY_PORT &= ~RLY_BIT;			RLY_DIR |= RLY_BIT;				// Video switching relay control.
 	VTR_REC_PORT &= ~VTR_REC_BIT;	VTR_REC_DIR |= VTR_REC_BIT;		// VTR record pause control.
-#ifdef EN_STANDBY
+#ifdef EN_WIRED_STANDBY
 	VTR_STBY_PORT &= ~VTR_STBY_BIT;	VTR_STBY_DIR |= VTR_STBY_BIT;	// VTR standby control.
 #else
 	VTR_STBY_PORT &= ~VTR_STBY_BIT;	VTR_STBY_DIR &= ~VTR_STBY_BIT;	// Disabled standby control.
-#endif /* EN_STANDBY */
+#endif /* EN_WIRED_STANDBY */
 	CAM_LED_PORT &= ~CAM_LED_PIN;	CAM_LED_DIR |= CAM_LED_PIN;		// Camera record/battery indicator control.
 	CAM_VID_PORT &= ~CAM_VID_PIN;	CAM_VID_DIR |= CAM_VID_PIN;		// Camera viewfinder video select control.
 	
