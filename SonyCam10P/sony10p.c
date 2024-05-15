@@ -176,7 +176,7 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.05";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v1.0";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
@@ -992,7 +992,9 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
+			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1053,7 +1055,9 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
+			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1104,7 +1108,9 @@ static inline void state_machine(void)
 			load_serial_cmd(SCMD_STBY);
 			// Check if state needs to be changed.
 			// Check mechanical mode.
-			if((u8_state&(STATE_LNK_REC|STATE_LNK_REC_P))==0)
+			if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
+				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1531,7 +1537,6 @@ int main(void)
 			//DBG_PWM = u8_volt_12v;
 			DBG_PWM = u8_cam_pwr;
 			
-#ifndef MCU_LOW_ROM
 #ifdef EN_SERIAL
 			// Check if serial link is established.
 			if((u8_state&STATE_SERIAL_DET)==0)
@@ -1554,6 +1559,7 @@ int main(void)
 			}
 			// Serial link present, VTR not recording,
 			// check errors within serial control.
+#ifndef MCU_LOW_ROM
 			else if(u8_ser_error>u8_blink_cnt)
 			{
 				// Blink error code.
@@ -1566,6 +1572,7 @@ int main(void)
 					DBG_RECERR_OFF;
 				}
 			}
+#endif	/* MCU_LOW_ROM */
 			else
 			{
 				DBG_RECERR_OFF;
@@ -1580,7 +1587,6 @@ int main(void)
 				DBG_RECERR_OFF;
 			}
 #endif	/* EN_SERIAL */			
-#endif	/* MCU_LOW_ROM */
 
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)

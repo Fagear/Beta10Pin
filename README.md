@@ -62,7 +62,7 @@ Most of all CMA-1010 can not monitor if record process on a VTR has started and 
 
 ## Firmware
 
-Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement.
+Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement. Firmware project is done in **AtmelStudio**.
 
 Target MCU is **ATmega 48** (either variant). But firmware should be compilable and working on **ATmega 88/168/328** variants as well.
 
@@ -105,7 +105,7 @@ In hex form:
 
 ## Hardware
 
-Adapter fits onto single PCB (**BETA10P.M.xx**) of size ~97x30 mm.
+Adapter fits onto single PCB (**BETA10P.M.xx**) of size ~97x30 mm. PCB project is done in **Sprint Layout 6**.
 
 14-pin Beta camera connector, 2xRCA connector and USB-C trigger are soldered onto the PCB. 10-pin EIAJ VTR connector connects via its cable with individual wires soldered into PCB.
 
