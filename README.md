@@ -155,12 +155,54 @@ Relay control:
 - **pin 13** *(PB1)*: (output) video ***direction switch*** control
 
 Debug signals:
-- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (blink)
+- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (blink, not available for ATmega48)
 - **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator
 - **pin 15** *(PB3)*: (output) serial ***transmission indicator***
 - **pin 14** *(PB2)*: (output) camera ***power consumption PWM***
 
 </details>
+
+## Usage
+
+After connecting adapter to supported VTR and camera and powering on the VTR adapter establishes serial link with the VTR and is held in "**idle**" mode.
+
+```mermaid
+flowchart LR;
+    idIdle(Idle)-- first press of record button -->idPause(Paused recording);
+    idPause-- record button -->idRec(Recording);
+    idRec-- record button -->idPause;
+    idPwrsv-- record button -->idRec;
+    idPause-- 2 minutes of pause -->idPwrsv(Power save pause);
+    idPause & idRec-- camera turned off -->idPwrsv;
+    idPause & idPwrsv-- RR button pressed -->idRR(Record review);
+    idRR-- RR button released -->idPause;
+    idPause & idRec & idPwrsv & idRR-- error event -->idErr(Error);
+    idErr-- record button -->idIdle;
+```
+
+When "**Camera**" switch on the front of the VTR is set to "***Normal***" VTR is controlled by its front panel and camera is ignored. User should eject the loading tray, put a recordable VHS cassette inside and close the tray.
+
+Next, "**Camera**" switch on the VTR should be moved into "***Remote***" position to allow the adapter to take control.
+
+First press of the record button on the camera arms the adapter, that commands to set "*record + pause*" mode to the VTR. At the same time tally light on the camera blinks fast and VTR spins up its head drum and loads the tape inside. When VTR gets ready tally light goes out and adapter settles in "**paused recording**" mode, recording does not start yet.
+
+"**Paused recording**" is the main mode of the adapter, ready to begin recording process. User can frame a shot using viewfinder of the camera and arm camera's "*Fader*" function if necessary. When record button is pressed in this state the adapter goes into "**recording**" mode and commands the VTR to clear pause and start recording process. Tally light should light up and stay solid.
+
+If record button is pressed while adapter is in "**recording**" mode, adapter returns back to "**paused recording**" mode, sets "record + pause" for the VTR and turns off tally light.
+
+If camera is switched into "*power save*" mode or gets disconnected, the adapter goes into "**power save pause**" mode. The same happens if "**paused recording**" mode was held for more than 2 minutes. In this mode VTR keeps tape loaded in but stops the drum and deactivates most of the circuits, dropping power consumption five-fold.
+
+When in "**paused recording**" or "**power save pause**" modes "*RR*" button can be pressed and held on the camera (if it's present). That puts adapter into "**record review**" mode when the VTR switches to playback in reverse and displays what was just recorded in camera's viewfinder. As soon as "*RR*" button gets released, adapter returns into "**paused recording**" mode and the VTR is once again put into "*record + pause*" from current place on the tape. While VTR switches from recording to playback and vice versa the tally light on the camera blinks fast.
+
+If any abnormal situation occurs, the adapter senses it and falls back into "**error**" mode which is indicated by slow blinking of the tally light on the camera. VTR should unload the tape and stop. "**Error**" mode can be cleared by single press of the record button on the camera.
+
+Examples of the sources of the error:
+- Trying to start recording without a tape in the VTR
+- Trying to record on a write-protected tape
+- "**Camera**" switch was moved from "***Remote***" position and adapter lost control over the VTR
+- VTR or tape malfunction
+
+If battery level gets too low, adapter makes a short blink of the tally light once a second.
 
 ## Current state
 
