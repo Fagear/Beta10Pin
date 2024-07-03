@@ -176,7 +176,7 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v1.0";				// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v1.1";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
@@ -272,8 +272,6 @@ ISR(VTR_SER_INT)
 		else
 		{
 			// Start of the new packed transmission after a pause.
-			// Indicate start of the transmission.
-			DBG_SER_RX_ON;
 			// Reset bit (MSB first) and byte counters.
 			u8_ser_byte_cnt = 0;
 			u8_ser_bit_cnt = (1<<SER_LAST_BIT);
@@ -346,8 +344,6 @@ ISR(SERT_INT)
 		// Serial link in not established.
 		u8i_interrupts &= ~(INTR_SERIAL|INTR_TALLY);
 	}
-	// Indicate end of the transmission.
-	DBG_SER_RX_OFF;
 }
 #endif	/* EN_SERIAL */
 
@@ -469,7 +465,7 @@ static inline void input_power_check(void)
 //-------------------------------------- Determine camera power consumption.
 static inline void camera_power_check(void)
 {
-#ifdef EN_CAM_PWR_DEF	
+#ifdef EN_CAM_PWR_DEF
 	u8_cam_pwr = 0;
 	// Don't calculate consumption if one of the ADC channels is not read yet.
 	if((u8_volt_12v==0)||(u8_volt_cam==0))
@@ -490,12 +486,19 @@ static inline void camera_power_check(void)
 	{
 		u8_cam_pwr = 254;
 	}
+	// Check if power measurement can be trusted.
+	if((u8_state&STATE_ADC_FAIL)!=0)
+	{
+		// Force "camera on" state.
+		u8_cam_pwr = VD_CAM_ON_UP;
+	}
 	// Check if camera is powered on.
 	if((u8_state&STATE_CAM_OFF)==0)
 	{
 		if(u8_cam_pwr<=VD_CAM_ON_DN)
 		{
 			u8_state |= STATE_CAM_OFF;
+			DBG_CAM_OFF;
 		}
 	}
 	else
@@ -503,9 +506,23 @@ static inline void camera_power_check(void)
 		if(u8_cam_pwr>=VD_CAM_ON_UP)
 		{
 			u8_state &= ~STATE_CAM_OFF;
+			DBG_CAM_ON;
 		}
 	}
 #endif /* EN_CAM_PWR_DEF */
+}
+
+//-------------------------------------- Check if camera sends commands while "camera is off" flag is set.
+void check_camera_presence(void)
+{
+	if((u8_state&STATE_CAM_OFF)!=0)
+	{
+		// Camera sends commands while ADC says it is off.
+		// Maybe ADC is dead, maybe current shunt has wrong value.
+		// Ignore power reading until reboot.
+		// (enhanced VTR powersave is lost, but the whole system still functions)
+		u8_state |= STATE_ADC_FAIL;
+	}
 }
 
 //-------------------------------------- Process timeouts.
@@ -614,6 +631,8 @@ static inline void read_inputs(void)
 				// Stop "record" period.
 				u8_state &= ~STATE_REC_LOCK;
 			}
+			// Check if camera power measurement can be trusted.
+			check_camera_presence();
 		}
 	}
 	else
@@ -645,6 +664,8 @@ static inline void read_inputs(void)
 					// Stop "record" period.
 					u8_state &= ~STATE_REC_LOCK;
 				}
+				// Check if camera power measurement can be trusted.
+				check_camera_presence();
 			}
 		}
 	}
@@ -661,6 +682,8 @@ static inline void read_inputs(void)
 				u8_inputs |= LINP_CAM_RR;
 				// Reset timer to block updates.
 				u8_rr_dly = TIME_CAM_RR;
+				// Check if camera power measurement can be trusted.
+				check_camera_presence();
 			}
 		}
 	}
@@ -677,6 +700,8 @@ static inline void read_inputs(void)
 				u8_inputs &= ~LINP_CAM_RR;
 				// Reset timer to block updates.
 				u8_rr_dly = TIME_CAM_RR;
+				// Check if camera power measurement can be trusted.
+				check_camera_presence();
 			}
 		}
 	}
@@ -909,14 +934,8 @@ static inline void state_machine(void)
 			// Trying to start recording if it is possible.
 			load_serial_cmd(SCMD_REC);
 			// Check if state needs to be changed.
-			// Check if camera is present.
-			if((u8_state&STATE_CAM_OFF)!=0)
-			{
-				// No camera, cancel recording.
-				u8_link_state = LST_STOP;
-			}
 			// Check if VTR can record.
-			else if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_FAST)&&
+			if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_FAST)&&
 					((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_STOP))
 			{
 				// No tape in VTR.
@@ -947,7 +966,7 @@ static inline void state_machine(void)
 			{
 				// Progress to the "recording ready" state.
 				u8_link_state = LST_REC_RDY;
-			} 
+			}
 			else
 			{
 				// Enable pause for VTR and turn off tally light.
@@ -1330,7 +1349,7 @@ static inline void state_machine(void)
 #endif	/* EN_SERIAL */
 	{
 		// No serial link detected, operating in wired ("dumb") mode.
-#ifdef EN_SERIAL	
+#ifdef EN_SERIAL
 		// Check if previously operated in serial linked mode and link dropped out.
 		if(u8_link_state!=LST_STOP)
 		{
@@ -1342,8 +1361,6 @@ static inline void state_machine(void)
 			u8_ser_mode_dly = 0;
 			u8_vtr_mode = 0;
 			u8_ser_byte_cnt = u8_ser_bit_cnt = 0;
-			// Indicate end of the transmission.
-			DBG_SER_RX_OFF;
 			// Clear record lock.
 			u8_state &= ~STATE_REC_LOCK;
 		}
@@ -1489,12 +1506,12 @@ int main(void)
 	u8_start_dly = TIME_STARTUP;
 
 #ifdef EN_SERIAL
-	// Load stop command to be recognized by the VTR.	
+	// Load stop command to be recognized by the VTR.
 	//load_serial_cmd(SCMD_STOP);
 #endif	/* EN_SERIAL */
-	
+
 	// Main cycle.
-    while (1) 
+    while (1)
     {
 		// Disable interrupts globally.
 		cli();
@@ -1504,7 +1521,7 @@ int main(void)
 		u8i_interrupts &= INTR_SERIAL;
 		// Enable interrupts globally.
 		sei();
-		
+
 		// Transfer serial link flag to the state.
 		u8_state &= ~(STATE_SERIAL_DET);
 #ifdef EN_SERIAL
@@ -1529,14 +1546,14 @@ int main(void)
 			// System timing: 1000 Hz, 1000 us period.
 			// Process additional timers.
 			soft_timer_management();
-			
+
 			// Start ADC conversion.
 			ADC_START;
-			
+
 			//DBG_PWM = u8_adc_12v;
-			//DBG_PWM = u8_volt_12v;
-			DBG_PWM = u8_cam_pwr;
-			
+			DBG_PWM = u8_adc_cam;
+			//DBG_PWM = u8_cam_pwr;
+
 #ifdef EN_SERIAL
 			// Check if serial link is established.
 			if((u8_state&STATE_SERIAL_DET)==0)
@@ -1586,7 +1603,7 @@ int main(void)
 			{
 				DBG_RECERR_OFF;
 			}
-#endif	/* EN_SERIAL */			
+#endif	/* EN_SERIAL */
 
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
@@ -1610,7 +1627,7 @@ int main(void)
 			{
 				DBG_3_OFF;
 			}*/
-			
+
 			// Process slow events.
 			if((u8_tasks&TASK_2HZ)!=0)
 			{

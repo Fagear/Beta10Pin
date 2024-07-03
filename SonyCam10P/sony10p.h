@@ -52,11 +52,12 @@ Part of the [SonyCam10P] project.
 
 // Flags for [u8_state].
 #define	STATE_REC_LOCK		(1<<0)	// Record command lock (for impulse trigger)
-#define	STATE_CAM_OFF		(1<<1)	// Camera is not connected or is in power save mode
-#define	STATE_LOW_BATT		(1<<2)	// Incoming power has too low voltage
-#define	STATE_SERIAL_DET	(1<<3)	// Serial link present
-#define	STATE_LNK_REC_P		(1<<4)	// VTR is in serial linked mode and in paused recording
-#define	STATE_LNK_REC		(1<<5)	// VTR is in serial linked mode and recording
+#define	STATE_LOW_BATT		(1<<1)	// Incoming power has too low voltage
+#define	STATE_CAM_OFF		(1<<2)	// Camera is not connected or is in power save mode
+#define	STATE_ADC_FAIL		(1<<3)	// ADC calculation says "no camera", but camera sends commands
+#define	STATE_SERIAL_DET	(1<<4)	// Serial link present
+#define	STATE_LNK_REC_P		(1<<5)	// VTR is in serial linked mode and in paused recording
+#define	STATE_LNK_REC		(1<<6)	// VTR is in serial linked mode and recording
 
 // Voltage thresholds.
 enum
@@ -64,8 +65,8 @@ enum
 	VIN_LOW_BATT_UP	= 40,			// Input voltage 10.65 V ("battery OK")
 	VIN_LOW_BATT_DN = 34,			// Input voltage 10.35 V ("battery low")
 	VIN_OFF			= 13,			// Input voltage 9.5 V
-	VD_CAM_ON_UP	= 65,			// Voltage difference for detected camera ON
-	VD_CAM_ON_DN	= 55,			// Voltage difference for detected camera OFF
+	VD_CAM_ON_UP	= 18,			// Voltage difference for detected camera ON (current shunt 0.47 Ohm)
+	VD_CAM_ON_DN	= 14,			// Voltage difference for detected camera OFF (current shunt 0.47 Ohm)
 };
 // Voltage difference when camera is operating: 34...41% duty of 8-bit PWM (87...105) of [u8_cam_pwr]
 // Voltage difference when camera is operating w/o viewfinder: 31...35% (79...89) duty of 8-bit PWM
@@ -216,6 +217,7 @@ enum
 
 void sort_array(uint8_t *arr_ptr);
 void load_serial_cmd(uint8_t new_cmd);
+void check_camera_presence(void);
 void go_to_powersave(void);
 void go_to_error(uint8_t err_code);
 int main(void);

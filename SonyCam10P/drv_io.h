@@ -137,10 +137,10 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define DBG_3_TGL		(DBG_PORT^=DBG_3_PIN)
 #define DBG_PWM			OCR1B
 #define DBG_HRBT_TGL	DBG_2_TGL						// Used to indicate alive firmware and serial link status (in production)
-#define DBG_RECERR_ON	DBG_3_OFF						// Used to indicate NV-180 mechanical record state (in production)
-#define DBG_RECERR_OFF	DBG_3_ON
-#define DBG_SER_RX_ON	DBG_1_ON						// Used to indicate duration of serial transmission (in production)
-#define DBG_SER_RX_OFF	DBG_1_OFF
+#define DBG_RECERR_ON	DBG_3_ON						// Used to indicate NV-180 mechanical record state (in production)
+#define DBG_RECERR_OFF	DBG_3_OFF
+#define DBG_CAM_ON		DBG_1_ON						// Used to indicate camera presence (in production)
+#define DBG_CAM_OFF		DBG_1_OFF
 
 // Power supply ADC inputs.
 #define ADC_INT			ADC_vect						// Interrupt vector alias
