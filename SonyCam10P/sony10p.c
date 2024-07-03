@@ -180,7 +180,10 @@ volatile const uint8_t ucaf_version[] PROGMEM = "v1.1";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
-volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear (fagear@mail.ru)";	// Author
+#ifndef MCU_LOW_ROM
+volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear";						// Author
+#endif
+volatile const uint8_t ucaf_url[] PROGMEM = "https://github.com/Fagear/Beta10Pin";				// URL
 
 //-------------------------------------- System timer interrupt handler.
 ISR(SYST_INT, ISR_NAKED)
