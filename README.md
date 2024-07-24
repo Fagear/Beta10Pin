@@ -6,7 +6,7 @@
 
 ## Supported VTRs
 
-The main target VTR is **Panasonic/National NV-180** which has a small footprint, full direct drive 4-head die-cast transport and non-EIAJ-standard serial link to a camera. But this adapter *should* work with other VTRs that have EIAJ 10-pin connector for a camera. Also, older **Panasonic/National NV-100** VTR and its derivatives have a serial link to the camera but its protocol is unknown and compatibility not tested.
+The main target VTR is **Panasonic/National NV-180** which has a small footprint, full direct drive VHS 4-head die-cast transport and non-EIAJ-standard serial link to a camera. But this adapter *should* work with other VTRs that have EIAJ 10-pin connector for a camera. Also, older **Panasonic/National NV-100** VTR and its derivatives have a serial link to the camera but its protocol is unknown and compatibility not tested.
 <details>
 <summary>NV-180 compatible machines</summary>
 
@@ -62,44 +62,62 @@ Most of all CMA-1010 can not monitor if record process on a VTR has started and 
 
 ## Firmware
 
-Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement. Firmware project is done in **AtmelStudio**.
+Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement. Firmware project is done in **AtmelStudio 7**.
 
-Target MCU is **ATmega 48** (either variant). But firmware should be compilable and working on **ATmega 88/168/328** variants as well.
+Target MCU is **ATmega 88** (either variant). But firmware should be compilable and working on **ATmega 48/88/168/328** variants as well. **ATmega 48** firmware has some limitations due to low ROM capacity.
 
 MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing.
 
 Due to dependance on ADC measurements and proper serial connection with VTR MCU should run on voltages from **4.5 V** to **5.0 V**.
 
 <details>
-<summary>AVR fuse information</summary>
+<summary>AVR fuses for ATmega48/ATmega88/ATmega168 with 8 MHz Xtal</summary>
 
-Fuses for **ATmega48P** with *8 MHz Xtal*:
-- **SUT0** = 0
+- **SUT1** = 0
 - **CKSEL3** = 0
 - **SPIEN** = 0
-- **EESAVE** = 0
+- **BODLEVEL1** = 0
+- **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0xE7**
-- high byte: **0xD7**
+- low byte: **0xD7**
+- high byte: **0xDC**
 - extended byte: **0xFF**
+</details>
 
-For **ATmega328P** with *internal RC generator*:
+<details>
+<summary>AVR fuses for ATmega328 with 8 MHz Xtal</summary>
+
+- **SUT1** = 0
+- **CKSEL3** = 0
+- **SPIEN** = 0
+- **BODLEVEL1** = 0
+- **BODLEVEL0** = 0
+- all other at "1"
+
+In hex form:
+- low byte: **0xD7**
+- high byte: **0xDF**
+- extended byte: **0xFC**
+</details>
+
+<details>
+<summary>AVR fuses for ATmega328 with internal RC generator</summary>
+
 - **SUT1** = 0
 - **SUT0** = 0
 - **CKSEL3** = 0
 - **CKSEL2** = 0
 - **CKSEL0** = 0
 - **SPIEN** = 0
-- **EESAVE** = 0
 - **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
 - low byte: **0xC2**
-- high byte: **0xD7**
+- high byte: **0xDF**
 - extended byte: **0xFC**
 </details>
 
@@ -107,17 +125,25 @@ In hex form:
 
 Adapter fits onto single PCB (**BETA10P.M.xx**) of size ~97x30 mm. PCB project is done in **Sprint Layout 6**.
 
-14-pin Beta camera connector, 2xRCA connector and USB-C trigger are soldered onto the PCB. 10-pin EIAJ VTR connector connects via its cable with individual wires soldered into PCB.
+14-pin Beta camera connector, 2xRCA connector and USB-C PD/QC trigger are soldered onto the PCB. 10-pin EIAJ VTR connector connects via its cable with individual wires connected to the PCB through connectors.
 
 The main PCB can be wrapped with shrink tube or slid into plastic/metal case. As an alternative project contains files for 4 more PCBs to assemble case from:
 - **BETA10P.F.xx** (29x35 mm) for the front part (holds 14-pin camera connector)
 - **BETA10P.B.xx** (29x35 mm) for the back part (2xRCA, USB-C, cable to 10-pin EIAJ connector)
-- **BETA10P.S.xx** (98x35 mm) for the both sides
-- **BETA10P.C.xx** (98x28 mm) for the top and bottom parts
+- **BETA10P.S.xx** (98x35 mm) for the both sides (2 pcs per adapter)
+- **BETA10P.C.xx** (98x28 mm) for the top and bottom parts (2 pcs per adapter)
 
-"*xx*" at the end denotes revision of each PCB.
+"*xx*" at the end denotes revision of each PCB. Release can contain boards of different revisions ("xx" doesn't have to be the same).
 
-Provided "case boards" also contain copper fill to shield the insides and connect with main PCB's common. Case is assembled via soldering parts together.
+Provided "case boards" also contain copper fill to shield the insides and connect with main PCB's common.
+
+When assembling, cable should be routed through the back PCB before connecting to the main PCB. 14-pin Beta connector should be put through the front PCB before soldering to the main PCB.
+
+Back PCB should be screwed to the RCA connector block. Front PCB should be screwed to the 14-pin Beta connector through soldered nuts.
+
+Case cover is assembled by soldering top and side parts together at the 90 degree angles. After that assembled cover should be slid onto the main PCB from the top and soldered in all corners to the front and back PCBs.
+
+Bottom PCB has to be put last and soldered on its perimeter to the case.
 
 <details>
 <summary>Pinout for ATmega 48/88/168/328 MCU in SMD packages</summary>
@@ -140,31 +166,41 @@ Voltage monitor:
 
 VTR I/O:
 - **pin 12** *(PB0)*: (input) video in/out ***direction*** (linked with EIAJ J-type pin 1)
-- **pin 9** *(PD5)*: (output) ***pause*** command (linked with EIAJ J-type pin 6)
-- **pin 10** *(PD6)*: (output) ***standby*** control (linked with EIAJ J-type pin 5)
+- **pin 9** *(PD5)*: (output) ***pause*** command (linked with EIAJ J-type pin 6, *active low*)
+- **pin 10** *(PD6)*: (output) ***standby*** control (linked with EIAJ J-type pin 5, *active high*)
 - **pin 11** *(PD7)*: (input) serial link ***clock*** (linked with EIAJ J-type pin 4)
 - **pin 31** *(PD1)*: (input/output) serial link ***data*** (linked with EIAJ J-type pin 3)
 
 Camera I/O:
 - **pin 1** *(PD3)*: (input) record ***pause*** (linked with Beta K-type pin 5)
 - **pin 32** *(PD2)*: (input) record ***review*** (linked with Beta K-type pin 8)
-- **pin 30** *(PD0)*: (output) ***tally*** light (linked with Beta K-type pin 6)
+- **pin 30** *(PD0)*: (output) ***tally*** light (linked with Beta K-type pin 6, *active high*)
 - **pin 2** *(PD4)*: (output) video ***direction control*** (linked with Beta K-type pin 3)
 
 Relay control:
 - **pin 13** *(PB1)*: (output) video ***direction switch*** control
 
 Debug signals:
-- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (blink, not available for ATmega48)
-- **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator
-- **pin 15** *(PB3)*: (output) serial ***transmission indicator***
-- **pin 14** *(PB2)*: (output) camera ***power consumption PWM***
+- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (not available for ATmega48)
+- **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator (not available for ATmega48)
+- **pin 14** *(PB2)*: (output) camera ***power consumption PWM*** (not available for ATmega48)
 
 </details>
 
 ## Usage
 
-After connecting adapter to supported VTR and camera and powering on the VTR adapter establishes serial link with the VTR and is held in "**idle**" mode.
+Cameras can have different "trigger modes" for the record button that usually can be selected with a switch at the bottom of the camera.
+
+Usual record button modes:
+- default at "low", toggling state with each button press
+- default at "high", toggling state with each button press
+- default at "high", producing ~200 ms negative pulse with each button press
+
+**CMA-1010** adapter only supports two modes and for selecting between those you have to open up its case and move a physical switch inside. **Beta10Pin** auto-detects trigger mode of the camera and responds on every record button press on the camera correctly.
+
+### Serial link mode
+
+After connecting adapter to supported VTR (NV-180 or other from "Supported VTRs" list) and to Beta camera and powering on the VTR adapter establishes serial link with the VTR and is held in "**idle**" mode.
 
 ```mermaid
 flowchart LR;
@@ -180,7 +216,7 @@ flowchart LR;
     idErr-- record button -->idIdle;
 ```
 
-When "**Camera**" switch on the front of the VTR is set to "***Normal***" VTR is controlled by its front panel and camera is ignored. User should eject the loading tray, put a recordable VHS cassette inside and close the tray.
+When "**Camera**" switch on the front of the VTR is set to "***Normal***" VTR is controlled by its front panel and camera adapter is ignored. User should eject the loading tray, put a recordable VHS cassette inside and close the tray.
 
 Next, "**Camera**" switch on the VTR should be moved into "***Remote***" position to allow the adapter to take control.
 
@@ -201,6 +237,22 @@ Examples of the sources of the error:
 - Trying to record on a write-protected tape
 - "**Camera**" switch was moved from "***Remote***" position and adapter lost control over the VTR
 - VTR or tape malfunction
+
+If battery level gets too low, adapter makes a short blink of the tally light once a second.
+
+### Direct mode
+
+If the VTR does not have a serial link (or the link has failed for any reason) adapter senses it and falls back into "direct" control mode. In this mode adapter operates more or less like **CMA-1010**.
+
+The only control mechanism in this mode is "pause" wire in the 10-pin connector (pin 6) with no feedback from a VTR to a camera. No monitoring of the VTR state is available in this mode.
+
+With every press of record button on the camera adapter will toggle "pause" signal to the VTR and tally light on the camera. If VTR was in "**paused recording**" mode it will go into "**recording**" mode, if VTR was in "**recording**" mode it will go into "**paused recording**" mode. If there was no tape in the VTR or recording mode was not armed probably nothing will happen on the VTR side (while tally light could still light up) leading to loss of video material.
+
+If adapter senses that VTR switched into playback mode, firmware will toggle "**recording**" mode to "**paused recording**" and turn off tally light.
+
+"RR" button on the camera will have no effect on the VTR, no "**record review**" functionality is available in this mode.
+
+If camera is switched into "*power save*" mode or gets disconnected, the adapter goes into "**paused recording**" mode and turns off tally light on the camera.
 
 If battery level gets too low, adapter makes a short blink of the tally light once a second.
 

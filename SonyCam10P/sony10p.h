@@ -174,16 +174,6 @@ enum
 	SCMD_IDLE		= 0b11111111,	// No command (three in a row and VTR switches clock off)
 };
 
-// Values for [SER_VTR2CAM_DISP_OFS].
-enum
-{
-	SDISP_CNTR_M	= 0b01010000,	// High nibble for tape counter with "M"(emory) mark ON transmission
-	SDISP_CNTR		= 0b00000000,	// High nibble for tape counter no "M"(emory) mark transmission
-	SDISP_BATT		= 0b11110000,	// High nibble for battery level transmission
-	SDISP_REM_ON	= 0b00000000,	// Low nibble for camera remote switch ON
-	SDISP_REM_OFF	= 0b00000101,	// Low nibble for camera remote switch OFF
-};
-
 // Bit flags for [SER_MN2UPD_OFS].
 enum
 {
@@ -213,6 +203,43 @@ enum
 	STTR_HN_S_RECP	= 0b01010000,	// High nibble for stable mechanical REC+PAUSE
 	STTR_HN_S_REC	= 0b01100000,	// High nibble for stable mechanical RECORD
 	STTR_HN_S_PLAY	= 0b01110000,	// High nibble for stable mechanical PLAY/SLOW/SEARCH/STILL
+};
+
+// Values for [SER_VTR2CAM_DISP_OFS].
+enum
+{
+	SDISP_CNTR_M	= 0b01010000,	// High nibble for tape counter with "M"(emory) mark ON transmission
+	SDISP_CNTR		= 0b00000000,	// High nibble for tape counter no "M"(emory) mark transmission
+	SDISP_BATT_MASK	= 0xF0,			// Mask for battery info transmittion
+	SDISP_BATT		= 0b11110000,	// High nibble for battery level transmission
+	SDISP_REM_ON	= 0b00000000,	// Low nibble for camera remote switch ON
+	SDISP_REM_OFF	= 0b00000101,	// Low nibble for camera remote switch OFF
+};
+
+// Values for [SER_VTR2CAM_CNT1_OFS].
+enum
+{
+	SBATT_100P		= 0b11110000,	// 75%...100% battery level (4/4 of a scale is lit)
+	SBATT_75P1		= 0b11111111,	// 75% or lower battery level (more info in [SER_VTR2CAM_CNT2_OFS])
+	SBATT_0P		= 0b00000000,	// 0% battery level/undercut (battery scale is off)
+};
+
+// Values for [SER_VTR2CAM_CNT2_OFS].
+enum
+{
+	SBATT_75P2		= 0b00000000,	// 50%...75% or higher battery level (more info in [SER_VTR2CAM_CNT1_OFS])
+	SBATT_50P		= 0b11110000,	// 25%...50% battery level (2/4 of a scale is lit)
+	SBATT_25P		= 0b11111111,	// 0%...25% battery level (1/4 of a scale is lit)
+};
+
+// Battery charge levels.
+enum
+{
+	VTR_BATT_0		= 0,			// 0% battery level (about to shutdown)
+	VTR_BATT_25		= 25,			// 0...25% battery level
+	VTR_BATT_50		= 50,			// 25...50% battery level
+	VTR_BATT_75		= 75,			// 50...75% battery level
+	VTR_BATT_100	= 100,			// 75...100% battery level
 };
 
 void sort_array(uint8_t *arr_ptr);

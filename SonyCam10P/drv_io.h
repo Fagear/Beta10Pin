@@ -251,12 +251,14 @@ inline void HW_init(void)
 	DBG_PORT &= ~(DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 	DBG_DIR |= (DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 
+#ifndef MCU_LOW_ROM
 	// Debug PWM.
 	DBG_PORT &= ~DBG_4_PIN;		DBG_DIR |= DBG_4_PIN;				// OC1B output
 	TCNT1 = 0;
 	OCR1B = 0;
 	TCCR1A = (1<<COM1B1)|(1<<WGM10);								// Fast non-inverting 8-bit PWM
 	TCCR1B = (1<<WGM12)|(0<<CS12)|(0<<CS11)|(1<<CS10);				// Start timer with clk/1 clock (8 MHz), 31.25 kHz cycle
+#endif	/* MCU_LOW_ROM */
 
 	// Turn off unused modules for power saving.
 	PWR_COMP_OFF;

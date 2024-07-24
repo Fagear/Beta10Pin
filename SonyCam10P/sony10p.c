@@ -35,6 +35,7 @@ uint8_t u8_link_state=LST_STOP;				// State of operation through
 uint8_t u8_ser_error=ERR_ALL_OK;			// Last error during operating with serial link
 #endif	/* MCU_LOW_ROM */
 uint8_t u8_vtr_mode=0;						// Logic and mechanical mode of VTR, received through serial link
+uint8_t u8_vtr_batt=VTR_BATT_100;			// Battery state of the VTR, received through serial link
 uint8_t u8_ser_cmd_dly=0;					// Duration for sending new command to the VTR
 uint8_t u8_ser_mode_dly=0;					// Timer for serial link modes
 uint8_t u8_ser_link_wd=0;					// Watchdog timer for serial link communication
@@ -176,12 +177,14 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v1.1";				// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v1.2";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
-volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
 #ifndef MCU_LOW_ROM
+volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
 volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear";						// Author
+#else
+volatile const uint8_t ucaf_info[] PROGMEM = "Beta camera to EIAJ adapter";						// Firmware description
 #endif
 volatile const uint8_t ucaf_url[] PROGMEM = "https://github.com/Fagear/Beta10Pin";				// URL
 
@@ -439,30 +442,52 @@ static inline void soft_timer_management(void)
 //-------------------------------------- Check state of input power supply.
 static inline void input_power_check(void)
 {
-	// Don't check if input voltage channel is not read yet.
-	if(u8_volt_12v==0)
+	// Check if serial link with VTR is present.
+	if((u8_state&STATE_SERIAL_DET)==0)
 	{
-		return;
-	}
-	// Check if "low battery" indication should be lit.
-	if((u8_state&STATE_LOW_BATT)==0)
-	{
-		// "Low battery" flag was NOT active before.
-		// Check for lower threshold (for hysteresis).
-		if(u8_volt_12v<=VIN_LOW_BATT_DN)
+		// No serial link - no battery data from VTR.
+		// Need to measure voltage.
+		// Don't check if input voltage channel is not read yet.
+		if(u8_volt_12v==0)
 		{
-			u8_state |= STATE_LOW_BATT;
+			return;
+		}
+		// Check if "low battery" indication should be lit.
+		if((u8_state&STATE_LOW_BATT)==0)
+		{
+			// "Low battery" flag was NOT active before.
+			// Check for lower threshold (for hysteresis).
+			if(u8_volt_12v<=VIN_LOW_BATT_DN)
+			{
+				u8_state |= STATE_LOW_BATT;
+			}
+		}
+		else
+		{
+			// "Low battery" flag WAS active before.
+			// Check for higher threshold (for hysteresis).
+			if(u8_volt_12v>=VIN_LOW_BATT_UP)
+			{
+				u8_state &= ~STATE_LOW_BATT;
+			}
 		}
 	}
+#ifdef EN_SERIAL
 	else
 	{
-		// "Low battery" flag WAS active before.
-		// Check for higher threshold (for hysteresis).
-		if(u8_volt_12v>=VIN_LOW_BATT_UP)
+		// Serial link is online.
+		// Check VTR gauge.
+		if((u8_vtr_batt==VTR_BATT_0)||(u8_vtr_batt==VTR_BATT_25))
+		{
+			// 25% or less of charge.
+			u8_state |= STATE_LOW_BATT;
+		}
+		else
 		{
 			u8_state &= ~STATE_LOW_BATT;
 		}
 	}
+#endif	/* EN_SERIAL */
 }
 
 //-------------------------------------- Determine camera power consumption.
@@ -481,6 +506,7 @@ static inline void camera_power_check(void)
 		// Calculate camera consumption.
 		u8_cam_pwr = u8_volt_12v - u8_volt_cam;
 	}
+	// Multiply value with clipping.
 	if(u8_cam_pwr<32)
 	{
 		u8_cam_pwr = (u8_cam_pwr*8);
@@ -1539,6 +1565,38 @@ int main(void)
 			u8_buf_interrupts &= ~INTR_RX;
 			// Pick current VTR mode data.
 			u8_vtr_mode = u8a_ser_data[SER_MN2UPD_OFS];
+			// Get battery charge information from VTR.
+			if((u8a_ser_data[SER_VTR2CAM_DISP_OFS]&SDISP_BATT_MASK)==SDISP_BATT)
+			{
+				if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_0P)
+				{
+					// Battery is drained, VTR is about to shut off.
+					u8_vtr_batt = VTR_BATT_0;
+				}
+				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_100P)
+				{
+					// Battery at 75...100% of charge.
+					u8_vtr_batt = VTR_BATT_100;
+				}
+				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_75P1)
+				{
+					if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_75P2)
+					{
+						// Battery at 50...75% of charge.
+						u8_vtr_batt = VTR_BATT_75;
+					}
+					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_50P)
+					{
+						// Battery at 25...50% of charge.
+						u8_vtr_batt = VTR_BATT_50;
+					}
+					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_25P)
+					{
+						// Battery at 0...25% of charge.
+						u8_vtr_batt = VTR_BATT_25;
+					}
+				}
+			}
 		}
 #endif	/* EN_SERIAL */
 
@@ -1553,6 +1611,7 @@ int main(void)
 			// Start ADC conversion.
 			ADC_START;
 
+#ifndef MCU_LOW_ROM
 			//DBG_PWM = u8_adc_12v;
 			DBG_PWM = u8_adc_cam;
 			//DBG_PWM = u8_cam_pwr;
@@ -1579,7 +1638,6 @@ int main(void)
 			}
 			// Serial link present, VTR not recording,
 			// check errors within serial control.
-#ifndef MCU_LOW_ROM
 			else if(u8_ser_error>u8_blink_cnt)
 			{
 				// Blink error code.
@@ -1592,7 +1650,6 @@ int main(void)
 					DBG_RECERR_OFF;
 				}
 			}
-#endif	/* MCU_LOW_ROM */
 			else
 			{
 				DBG_RECERR_OFF;
@@ -1607,6 +1664,7 @@ int main(void)
 				DBG_RECERR_OFF;
 			}
 #endif	/* EN_SERIAL */
+#endif	/* MCU_LOW_ROM */
 
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
@@ -1636,11 +1694,13 @@ int main(void)
 			{
 				u8_tasks&=~TASK_2HZ;
 				// 2 Hz event, 500 ms period.
+#ifndef MCU_LOW_ROM
 				if((u8_state&STATE_SERIAL_DET)==0)
 				{
 					// Slow heartbeat: FW alive, but no serial link.
 					DBG_HRBT_TGL;
 				}
+#endif	/* MCU_LOW_ROM */
 				// Reset watchdog timer.
 				wdt_reset();
 				// Manage timing of certain states.
@@ -1650,11 +1710,13 @@ int main(void)
 			{
 				u8_tasks&=~TASK_5HZ_PH1;
 				// 5 Hz event (phase 1), 200 ms period.
+#ifndef MCU_LOW_ROM
 				if((u8_state&STATE_SERIAL_DET)!=0)
 				{
 					// Fast heartbeat: FW alive, serial link is OK.
 					DBG_HRBT_TGL;
 				}
+#endif	/* MCU_LOW_ROM */
 				// Filter ADC data from 12 V input channel.
 				filter_adc_ph1();
 			}
