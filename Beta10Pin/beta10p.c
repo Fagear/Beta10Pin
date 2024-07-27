@@ -1,4 +1,4 @@
-#include "sony10p.h"
+#include "beta10p.h"
 
 volatile uint8_t u8i_interrupts = 0;		// Deferred interrupts call flags (non-buffered)
 uint8_t u8_buf_interrupts = 0;				// Deferred interrupts call flags (buffered)

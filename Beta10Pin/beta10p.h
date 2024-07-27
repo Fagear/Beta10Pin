@@ -1,5 +1,5 @@
 /**************************************************************************************************************************************************************
-sony10p.h
+beta10p.h
 
 Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
@@ -17,12 +17,12 @@ limitations under the License.
 
 Created: 2024-04-21
 
-Part of the [SonyCam10P] project.
+Part of the [Beta10Pin] project.
 
 **************************************************************************************************************************************************************/
 
-#ifndef SONY10P_H_
-#define SONY10P_H_
+#ifndef BETA10P_H_
+#define BETA10P_H_
 
 #include <stdio.h>
 #include <string.h>
@@ -255,4 +255,4 @@ void go_to_switch_to_record(void);
 void go_to_error(uint8_t err_code);
 int main(void);
 
-#endif /* SONY10P_H_ */
+#endif /* BETA10P_H_ */

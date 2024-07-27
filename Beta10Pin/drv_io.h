@@ -17,7 +17,7 @@ limitations under the License.
 
 Created: 2024-04-21
 
-Part of the [SonyCam10P] project.
+Part of the [Beta10Pin] project.
 Hardware defines (pseudo-HAL) and setup routines for AVR MCUs and AVRStudio/WinAVR/AtmelStudio compilers.
 
 Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATmega328(-/P).
