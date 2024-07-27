@@ -43,11 +43,9 @@ Defines/switches for configuring compile-time options.
 #endif
 
 // Check for 4K MCUs
-#undef MCU_LOW_ROM
 #if MCU_ROM_SIZE<0x1000
 	// For 4K MCUs error code blinking is not available
-	#warning Low flash ROM, some features are disabled!
-	#define MCU_LOW_ROM
+	#error Low flash ROM, MCU not supported!
 #endif
 
 #endif /* CONFIG_H_ */

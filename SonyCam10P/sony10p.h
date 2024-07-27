@@ -35,10 +35,11 @@ Part of the [SonyCam10P] project.
 
 // Flags for [u8i_interrupts] and [u8_buf_interrupts].
 #define INTR_SYS_TICK		(1<<0)	// System timing
-#define INTR_READ_ADC		(1<<1)	// ADC result is ready
-#define INTR_SERIAL			(1<<2)	// Detected serial link with NV-180
-#define INTR_RX				(1<<3)	// Serial transmission finished
-#define INTR_TALLY			(1<<4)	// Tally signal in Serial transmission 
+#define INTR_ADC_CH1		(1<<1)	// ADC result channel 1 is ready
+#define INTR_ADC_CH2		(1<<2)	// ADC result channel 2 is ready
+#define INTR_SERIAL			(1<<3)	// Detected serial link with NV-180
+#define INTR_RX				(1<<4)	// Serial transmission finished
+#define INTR_TALLY			(1<<5)	// Tally signal in Serial transmission 
 
 // Flags for [u8_tasks].
 #define	TASK_500HZ			(1<<0)	// 500 Hz event
@@ -58,20 +59,18 @@ Part of the [SonyCam10P] project.
 #define	STATE_SERIAL_DET	(1<<4)	// Serial link present
 #define	STATE_LNK_REC_P		(1<<5)	// VTR is in serial linked mode and in paused recording
 #define	STATE_LNK_REC		(1<<6)	// VTR is in serial linked mode and recording
+#define	STATE_LNK_REC_GEN	(1<<7)	// VTR is in serial linked mode and either recording or in paused recording
 
 // Voltage thresholds.
 enum
 {
-	VIN_LOW_BATT_UP	= 40,			// Input voltage 10.65 V ("battery OK")
-	VIN_LOW_BATT_DN = 34,			// Input voltage 10.35 V ("battery low")
-	VIN_OFF			= 13,			// Input voltage 9.5 V
-	VD_CAM_ON_UP	= 18,			// Voltage difference for detected camera ON (current shunt 0.47 Ohm)
-	VD_CAM_ON_DN	= 14,			// Voltage difference for detected camera OFF (current shunt 0.47 Ohm)
+	VIN_LOW_BATT_UP	= 55,			// Input voltage 10.70 V ("battery OK")
+	VIN_LOW_BATT_DN = 39,			// Input voltage 10.35 V ("battery low")
+	VIN_OFF			= 19,			// Input voltage 9.9 V
+	V_DIFF_MAX		= 32,			// Maximum allowed difference in voltages (~1.5 A consumption)
+	VD_CAM_ON_UP	= 8,			// Voltage difference for detected camera ON (current shunt 0.47 Ohm)
+	VD_CAM_ON_DN	= 5,			// Voltage difference for detected camera OFF (current shunt 0.47 Ohm)
 };
-// Voltage difference when camera is operating: 34...41% duty of 8-bit PWM (87...105) of [u8_cam_pwr]
-// Voltage difference when camera is operating w/o viewfinder: 31...35% (79...89) duty of 8-bit PWM
-// Voltage difference when camera is connected, but in standby: 16...19% (41...48) duty of 8-bit PWM
-// Voltage difference when camera is not connected: 9...15% duty of 8-bit PWM
 
 // Length of the buffer for each ADC channel before filtering.
 #define	ADC_HIST_LEN		23
@@ -104,8 +103,8 @@ enum
 	TIME_SCMD_INH	= 40,			// 20 s maximum time for VTR to go to recording mode from stop
 	TIME_REC_P_MAX	= 240,			// 120 s delay before going into standby from paused recording
 	TIME_SCMD_2REC	= 12,			// 6 s maximum time for VTR to go to switch from recording+pause to playback+pause
-	TIME_SCMD_REV_I	= 4,			// 2 s delay in playback+pause before starting to playing backwards
-	TIME_SCMD_REV_O	= 6,			// 3 s delay in playback+pause before returning to record
+	TIME_SCMD_REV_I	= 6,			// 3 s delay in playback+pause before starting to playing backwards
+	TIME_SCMD_REV_O	= 8,			// 4 s delay in playback+pause before returning to record
 	TIME_SCMD_ERR	= 2,			// 1 s delay before error mode within serial linked operation can be canceled
 };
 
@@ -120,7 +119,8 @@ enum
 	LST_REC_PWRSV,					// Pause recording with powersave
 	LST_SW_PB,						// Switching from record to playback (RR)
 	LST_PB_PAUSE,					// Paused playback
-	LST_PB_REW,						// Playback review
+	LST_PB_REW,						// Playback review (in reverse)
+	LST_PB_FWD,						// Playback review (in forward)
 	LST_PB_HOLD,					// Paused playback (hold)
 	LST_SW_REC,						// Switching from playback to record
 	LST_ERROR,						// Errored out of normal operation (temporary mode)
@@ -217,19 +217,21 @@ enum
 };
 
 // Values for [SER_VTR2CAM_CNT1_OFS].
+// Warning! Service manual is wrong about those values!
 enum
 {
-	SBATT_100P		= 0b11110000,	// 75%...100% battery level (4/4 of a scale is lit)
-	SBATT_75P1		= 0b11111111,	// 75% or lower battery level (more info in [SER_VTR2CAM_CNT2_OFS])
 	SBATT_0P		= 0b00000000,	// 0% battery level/undercut (battery scale is off)
+	SBATT_25P		= 0b11110000,	// 0%...25% battery level/undercut (1/4 of a scale is lit)
+	SBATT_50P1		= 0b11111111,	// 25%...50% or higher battery level (more info in [SER_VTR2CAM_CNT2_OFS])
 };
 
 // Values for [SER_VTR2CAM_CNT2_OFS].
+// Warning! Service manual is wrong about those values!
 enum
 {
-	SBATT_75P2		= 0b00000000,	// 50%...75% or higher battery level (more info in [SER_VTR2CAM_CNT1_OFS])
-	SBATT_50P		= 0b11110000,	// 25%...50% battery level (2/4 of a scale is lit)
-	SBATT_25P		= 0b11111111,	// 0%...25% battery level (1/4 of a scale is lit)
+	SBATT_50P2		= 0b00000000,	// 50% or lower battery level (more info in [SER_VTR2CAM_CNT1_OFS])
+	SBATT_75P		= 0b11110000,	// 50%...75% battery level (3/4 of a scale is lit)
+	SBATT_100P		= 0b11111111,	// 75%...100% battery level (4/4 of a scale is lit)
 };
 
 // Battery charge levels.
@@ -242,10 +244,14 @@ enum
 	VTR_BATT_100	= 100,			// 75...100% battery level
 };
 
+void check_camera_presence(void);
 void sort_array(uint8_t *arr_ptr);
 void load_serial_cmd(uint8_t new_cmd);
-void check_camera_presence(void);
+void go_to_rec_paused(void);
 void go_to_powersave(void);
+void go_to_switch_to_play(void);
+void go_to_play_pause_hold(void);
+void go_to_switch_to_record(void);
 void go_to_error(uint8_t err_code);
 int main(void);
 

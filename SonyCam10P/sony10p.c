@@ -10,14 +10,16 @@ uint8_t u8_5hz_cnt=0;						// Divider for 5 Hz
 uint8_t u8_2hz_cnt=0;						// Divider for 2 Hz
 uint8_t u8_1hz_cnt=0;						// Divider for 1 Hz
 uint8_t u8_blink_cnt=0;						// Blink counter (linked with [TASK_FAST_BLINK])
-uint8_t u8_adc_12v=0;						// Voltage level at the power input
-uint8_t u8_adc_cam=0;						// Voltage level at the camera output
+uint16_t u16_adc_12v=0;						// Voltage level at the power input
+uint16_t u16_adc_cam=0;						// Voltage level at the camera output
+uint8_t u8_adc_12v=0;						// Voltage level at the power input (8-bit)
+uint8_t u8_adc_pwr=0;						// Voltage difference (8-bit)
 uint8_t u8a_12v_hist[ADC_HIST_LEN];			// Last [ADC_HIST_LEN] values of [u8_adc_12v]
-uint8_t u8a_camv_hist[ADC_HIST_LEN];		// Last [ADC_HIST_LEN] values of [u8_adc_cam]
-uint8_t u8_adc_fill_ptr=0;					// Fill pointer for [u8a_12v_hist] and [u8a_camv_hist]
+uint8_t u8a_pwr_hist[ADC_HIST_LEN];			// Last [ADC_HIST_LEN] values of [u8_adc_pwr]
+uint8_t sort_vals[ADC_HIST_LEN];			// Array used to sort other two arrays
+uint8_t u8_adc_fill_ptr=0;					// Fill pointer for [u8a_12v_hist] and [u8a_pwr_hist]
 uint8_t u8_volt_12v=0;						// Filtered data from [u8_adc_12v]
-uint8_t u8_volt_cam=0;						// Filtered data from [u8_adc_cam]
-uint8_t u8_cam_pwr=0;						// Camera consumption (voltage difference)
+uint8_t u8_cam_pwr=0;						// Filtered data from [u8_adc_pwr]
 uint8_t u8_inputs=0;						// Inputs state storage
 uint8_t u8_outputs=0;						// Outputs state storage
 uint8_t u8_start_dly=0;						// Start-up delay before processing anything
@@ -31,9 +33,7 @@ uint8_t u8_ser_bit_cnt=0;					// Bit count in the serial packed transmission
 volatile uint8_t u8a_ser_data[SER_PACK_LEN];// Data storage for serial transmission
 volatile uint8_t u8_ser_cmd=SCMD_STOP;		// Command to be sent through serial link to NV-180 VTR
 uint8_t u8_link_state=LST_STOP;				// State of operation through
-#ifndef MCU_LOW_ROM
 uint8_t u8_ser_error=ERR_ALL_OK;			// Last error during operating with serial link
-#endif	/* MCU_LOW_ROM */
 uint8_t u8_vtr_mode=0;						// Logic and mechanical mode of VTR, received through serial link
 uint8_t u8_vtr_batt=VTR_BATT_100;			// Battery state of the VTR, received through serial link
 uint8_t u8_ser_cmd_dly=0;					// Duration for sending new command to the VTR
@@ -42,7 +42,7 @@ uint8_t u8_ser_link_wd=0;					// Watchdog timer for serial link communication
 #endif	/* EN_SERIAL */
 
 // Using LUT for trading ROM space for computing time to speed up ADC read routine.
-// LUT for 10-bit to 8-bit conversion to pick 9.0...15.0 V range.
+// LUT for 10-bit to 8-bit conversion to pick 8.0...15.0 V range.
 const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 {
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
@@ -95,84 +95,84 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
 	1,	 1,	 1,	 1,	 1,	 1,	 1,	 1,
-	1,	 1,	 2,	 2,	 2,	 3,	 3,	 4,
-	4,	 4,	 5,	 5,	 6,	 6,	 7,	 7,
-	7,	 8,	 8,	 9,	 9,	 9,	 10,	 10,
-	11,	 11,	 11,	 12,	 12,	 13,	 13,	 13,
-	14,	 14,	 15,	 15,	 15,	 16,	 16,	 17,
-	17,	 17,	 18,	 18,	 19,	 19,	 20,	 20,
-	20,	 21,	 21,	 22,	 22,	 22,	 23,	 23,
-	24,	 24,	 24,	 25,	 25,	 26,	 26,	 26,
-	27,	 27,	 28,	 28,	 28,	 29,	 29,	 30,
-	30,	 30,	 31,	 31,	 32,	 32,	 33,	 33,
-	33,	 34,	 34,	 35,	 35,	 35,	 36,	 36,
-	37,	 37,	 37,	 38,	 38,	 39,	 39,	 39,
-	40,	 40,	 41,	 41,	 41,	 42,	 42,	 43,
-	43,	 43,	 44,	 44,	 45,	 45,	 46,	 46,
-	46,	 47,	 47,	 48,	 48,	 48,	 49,	 49,
-	50,	 50,	 50,	 51,	 51,	 52,	 52,	 52,
-	53,	 53,	 54,	 54,	 54,	 55,	 55,	 56,
-	56,	 57,	 57,	 57,	 58,	 58,	 59,	 59,
-	59,	 60,	 60,	 61,	 61,	 61,	 62,	 62,
-	63,	 63,	 63,	 64,	 64,	 65,	 65,	 65,
-	66,	 66,	 67,	 67,	 67,	 68,	 68,	 69,
-	69,	 70,	 70,	 70,	 71,	 71,	 72,	 72,
-	72,	 73,	 73,	 74,	 74,	 74,	 75,	 75,
-	76,	 76,	 76,	 77,	 77,	 78,	 78,	 78,
-	79,	 79,	 80,	 80,	 80,	 81,	 81,	 82,
-	82,	 83,	 83,	 83,	 84,	 84,	 85,	 85,
-	85,	 86,	 86,	 87,	 87,	 87,	 88,	 88,
-	89,	 89,	 89,	 90,	 90,	 91,	 91,	 91,
-	92,	 92,	 93,	 93,	 93,	 94,	 94,	 95,
-	95,	 96,	 96,	 96,	 97,	 97,	 98,	 98,
-	98,	 99,	 99,	 100,	 100,	 100,	 101,	 101,
-	102,	 102,	 102,	 103,	 103,	 104,	 104,	 104,
-	105,	 105,	 106,	 106,	 107,	 107,	 107,	 108,
-	108,	 109,	 109,	 109,	 110,	 110,	 111,	 111,
-	111,	 112,	 112,	 113,	 113,	 113,	 114,	 114,
-	115,	 115,	 115,	 116,	 116,	 117,	 117,	 117,
-	118,	 118,	 119,	 119,	 120,	 120,	 120,	 121,
-	121,	 122,	 122,	 122,	 123,	 123,	 124,	 124,
-	124,	 125,	 125,	 126,	 126,	 126,	 127,	 127,
-	128,	 128,	 128,	 129,	 129,	 130,	 130,	 130,
-	131,	 131,	 132,	 132,	 133,	 133,	 133,	 134,
-	134,	 135,	 135,	 135,	 136,	 136,	 137,	 137,
-	137,	 138,	 138,	 139,	 139,	 139,	 140,	 140,
-	141,	 141,	 141,	 142,	 142,	 143,	 143,	 143,
-	144,	 144,	 145,	 145,	 146,	 146,	 146,	 147,
-	147,	 148,	 148,	 148,	 149,	 149,	 150,	 150,
-	150,	 151,	 151,	 152,	 152,	 152,	 153,	 153,
-	154,	 154,	 154,	 155,	 155,	 156,	 156,	 157,
-	157,	 157,	 158,	 158,	 159,	 159,	 159,	 160,
-	160,	 161,	 161,	 161,	 162,	 162,	 163,	 163,
-	163,	 164,	 164,	 165,	 165,	 165,	 166,	 166,
-	167,	 167,	 167,	 168,	 168,	 169,	 169,	 170,
-	170,	 170,	 171,	 171,	 172,	 172,	 172,	 173,
-	173,	 174,	 174,	 174,	 175,	 175,	 176,	 176,
-	176,	 177,	 177,	 178,	 178,	 178,	 179,	 179,
-	180,	 180,	 180,	 181,	 181,	 182,	 182,	 183,
-	183,	 183,	 184,	 184,	 185,	 185,	 185,	 186,
-	186,	 187,	 187,	 187,	 188,	 188,	 189,	 189,
-	189,	 190,	 190,	 191,	 191,	 191,	 192,	 192,
-	193,	 193,	 193,	 194,	 194,	 195,	 195,	 196,
-	196,	 196,	 197,	 197,	 198,	 198,	 198,	 199,
-	199,	 200,	 200,	 200,	 201,	 201,	 202,	 202,
-	202,	 203,	 203,	 204,	 204,	 204,	 205,	 205,
-	206,	 206,	 207,	 207,	 207,	 208,	 208,	 209,
-	209,	 209,	 210,	 210,	 211,	 211,	 211,	 212,
-	212,	 213,	 213,	 213,	 214,	 214,	 215,	 215,
-	215,	 216,	 216,	 217,	 217,	 217,	 218,	 218,
-	219,	 219,	 220,	 220,	 220,	 221,	 221,	 222,
-	222,	 222,	 223,	 223,	 224,	 224,	 224,	 225,
-	225,	 226,	 226,	 226,	 227,	 227,	 228,	 228,
-	228,	 229,	 229,	 230,	 230,	 230,	 231,	 231,
-	232,	 232,	 233,	 233,	 233,	 234,	 234,	 235,
-	235,	 235,	 236,	 236,	 237,	 237,	 237,	 238,
-	238,	 239,	 239,	 239,	 240,	 240,	 241,	 241,
-	241,	 242,	 242,	 243,	 243,	 243,	 244,	 244,
-	245,	 245,	 246,	 246,	 246,	 247,	 247,	 248,
-	248,	 248,	 249,	 249,	 250,	 250,	 250,	 251,
-	251,	 252,	 252,	 252,	 253,	 253,	 254,	 254
+	1,	 1,	 1,	 1,	 1,	 1,	 1,	 2,
+	3,	 4,	 5,	 6,	 6,	 7,	 8,	 9,
+	10,	 11,	 12,	 13,	 14,	 15,	 16,	 17,
+	18,	 19,	 19,	 20,	 21,	 22,	 23,	 24,
+	25,	 26,	 27,	 28,	 29,	 30,	 31,	 31,
+	32,	 33,	 34,	 35,	 36,	 37,	 38,	 39,
+	40,	 41,	 42,	 43,	 44,	 44,	 45,	 46,
+	47,	 48,	 49,	 50,	 51,	 52,	 53,	 54,
+	55,	 56,	 56,	 57,	 58,	 59,	 60,	 61,
+	62,	 63,	 64,	 65,	 66,	 67,	 68,	 69,
+	69,	 70,	 71,	 72,	 73,	 74,	 75,	 76,
+	77,	 78,	 79,	 80,	 81,	 81,	 82,	 83,
+	84,	 85,	 86,	 87,	 88,	 89,	 90,	 91,
+	92,	 93,	 94,	 94,	 95,	 96,	 97,	 98,
+	99,	 100,	 101,	 102,	 103,	 104,	 105,	 106,
+	106,	 107,	 108,	 109,	 110,	 111,	 112,	 113,
+	114,	 115,	 116,	 117,	 118,	 119,	 119,	 120,
+	121,	 122,	 123,	 124,	 125,	 126,	 127,	 128,
+	129,	 130,	 131,	 131,	 132,	 133,	 134,	 135,
+	136,	 137,	 138,	 139,	 140,	 141,	 142,	 143,
+	144,	 144,	 145,	 146,	 147,	 148,	 149,	 150,
+	151,	 152,	 153,	 154,	 155,	 156,	 156,	 157,
+	158,	 159,	 160,	 161,	 162,	 163,	 164,	 165,
+	166,	 167,	 168,	 169,	 169,	 170,	 171,	 172,
+	173,	 174,	 175,	 176,	 177,	 178,	 179,	 180,
+	181,	 181,	 182,	 183,	 184,	 185,	 186,	 187,
+	188,	 189,	 190,	 191,	 192,	 193,	 194,	 194,
+	195,	 196,	 197,	 198,	 199,	 200,	 201,	 202,
+	203,	 204,	 205,	 206,	 206,	 207,	 208,	 209,
+	210,	 211,	 212,	 213,	 214,	 215,	 216,	 217,
+	218,	 219,	 219,	 220,	 221,	 222,	 223,	 224,
+	225,	 226,	 227,	 228,	 229,	 230,	 231,	 231,
+	232,	 233,	 234,	 235,	 236,	 237,	 238,	 239,
+	240,	 241,	 242,	 243,	 244,	 244,	 245,	 246,
+	247,	 248,	 249,	 250,	 251,	 252,	 253,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254,
+	254,	 254,	 254,	 254,	 254,	 254,	 254,	 254
 };
 
 
@@ -180,12 +180,8 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 volatile const uint8_t ucaf_version[] PROGMEM = "v1.2";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
-#ifndef MCU_LOW_ROM
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
 volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear";						// Author
-#else
-volatile const uint8_t ucaf_info[] PROGMEM = "Beta camera to EIAJ adapter";						// Firmware description
-#endif
 volatile const uint8_t ucaf_url[] PROGMEM = "https://github.com/Fagear/Beta10Pin";				// URL
 
 //-------------------------------------- System timer interrupt handler.
@@ -200,27 +196,55 @@ ISR(SYST_INT, ISR_NAKED)
 //-------------------------------------- ADC interrupt handler.
 ISR(ADC_INT)
 {
-	//u8i_interrupts |= INTR_READ_ADC;
-	uint8_t mux, data;
+	uint8_t mux;
+	uint16_t data16, u16_adc_diff;
 	// Read last mux state.
 	mux = ADC_MUX_RD;
 	// Clear selected channel.
 	ADC_MUX_CLR;
 	// Read data (converting from 10-bit to 8-bit).
-	data = pgm_read_byte_near(ucaf_adc_to_byte+ADC_DATA);
+	data16 = ADC_DATA;
+	// Check what channel was digitized.
 	if(mux==ADC_CH_12V)
 	{
 		// Save input 12V voltage level.
-		u8_adc_12v = data;
+		u16_adc_12v = data16;
+		u8_adc_12v = pgm_read_byte_near(ucaf_adc_to_byte+data16);
 		// Switch to next ADC channel.
 		ADC_MUX_WR |= ADC_CH_CAM;
+		// Set flag for CH1 ready.
+		u8i_interrupts |= INTR_ADC_CH1;
 	}
 	else
 	{
 		// Save output 12V to camera voltage level.
-		u8_adc_cam = data;
+		u16_adc_cam = data16;
 		// Switch to next ADC channel.
 		ADC_MUX_WR |= ADC_CH_12V;
+		// Set flag for CH2 ready.
+		u8i_interrupts |= INTR_ADC_CH2;
+	}
+	// Check if both channels are ready.
+	if(((u8i_interrupts&INTR_ADC_CH1)!=0)&&((u8i_interrupts&INTR_ADC_CH2)!=0))
+	{
+		// Clear flags.
+		u8i_interrupts &= ~(INTR_ADC_CH1|INTR_ADC_CH2);
+		// Calculate voltage difference with clipping at 0.
+		if(u16_adc_12v>=u16_adc_cam)
+		{
+			u16_adc_diff = u16_adc_12v - u16_adc_cam;
+		}
+		else
+		{
+			u16_adc_diff = 0;
+		}
+		// Clip maximum value.
+		if(u16_adc_diff>V_DIFF_MAX)
+		{
+			u16_adc_diff = V_DIFF_MAX;
+		}
+		// Save 8-bit voltage difference.
+		u8_adc_pwr = (uint8_t)u16_adc_diff;
 	}
 }
 
@@ -235,7 +259,7 @@ ISR(VTR_SER_INT)
 	SERT_RESET; SERT_START;
 	// Reset serial link watchdog.
 	u8_ser_link_wd = TIME_SER_TO;
-	// Check for rising or falling edge.
+	// Check for rising or falling edge of the serial clock.
 	if(VTR_SCLK_STATE==0)
 	{
 		// Falling edge.
@@ -439,8 +463,51 @@ static inline void soft_timer_management(void)
 	}
 }
 
+//-------------------------------------- Process fast delays.
+static inline void delay_management(void)
+{
+	// Count down every 2 ms.
+	if(u8_start_dly!=0) u8_start_dly--;
+	if(u8_vid_dir_dly!=0) u8_vid_dir_dly--;
+	if(u8_rec_trg_dly!=0) u8_rec_trg_dly--;
+	if(u8_rr_dly!=0) u8_rr_dly--;
+	#ifdef EN_SERIAL
+	// Serial command timeout.
+	if(u8_ser_cmd_dly!=0)
+	{
+		u8_ser_cmd_dly--;
+	}
+	else
+	{
+		// Expire command, go idle.
+		u8_ser_cmd = SCMD_STOP;
+	}
+	// Serial link watchdog.
+	if(u8_ser_link_wd!=0)
+	{
+		u8_ser_link_wd--;
+	}
+	else
+	{
+		// No serial activity.
+		u8i_interrupts &= ~INTR_SERIAL;
+	}
+
+	#endif	/* EN_SERIAL */
+}
+
+//-------------------------------------- Process slow delays.
+static inline void slow_state_timing(void)
+{
+	// Count down every 500 ms.
+	if(u8_rec_fade_dly!=0) u8_rec_fade_dly--;
+	#ifdef EN_SERIAL
+	if(u8_ser_mode_dly!=0) u8_ser_mode_dly--;
+	#endif	/* EN_SERIAL */
+}
+
 //-------------------------------------- Check state of input power supply.
-static inline void input_power_check(void)
+static inline void input_voltage_check(void)
 {
 	// Check if serial link with VTR is present.
 	if((u8_state&STATE_SERIAL_DET)==0)
@@ -494,48 +561,27 @@ static inline void input_power_check(void)
 static inline void camera_power_check(void)
 {
 #ifdef EN_CAM_PWR_DEF
-	u8_cam_pwr = 0;
-	// Don't calculate consumption if one of the ADC channels is not read yet.
-	if((u8_volt_12v==0)||(u8_volt_cam==0))
-	{
-		return;
-	}
-	// Prevent overflow if voltage dividers/ADC tolerances lead to impossible.
-	if(u8_volt_12v>=u8_volt_cam)
-	{
-		// Calculate camera consumption.
-		u8_cam_pwr = u8_volt_12v - u8_volt_cam;
-	}
-	// Multiply value with clipping.
-	if(u8_cam_pwr<32)
-	{
-		u8_cam_pwr = (u8_cam_pwr*8);
-	}
-	else
-	{
-		u8_cam_pwr = 254;
-	}
 	// Check if power measurement can be trusted.
 	if((u8_state&STATE_ADC_FAIL)!=0)
 	{
 		// Force "camera on" state.
 		u8_cam_pwr = VD_CAM_ON_UP;
 	}
-	// Check if camera is powered on.
+	// Check if camera is powered on (with hysteresis).
 	if((u8_state&STATE_CAM_OFF)==0)
 	{
+		DBG_CAM_ON;
 		if(u8_cam_pwr<=VD_CAM_ON_DN)
 		{
 			u8_state |= STATE_CAM_OFF;
-			DBG_CAM_OFF;
 		}
 	}
 	else
 	{
+		DBG_CAM_OFF;
 		if(u8_cam_pwr>=VD_CAM_ON_UP)
 		{
 			u8_state &= ~STATE_CAM_OFF;
-			DBG_CAM_ON;
 		}
 	}
 #endif /* EN_CAM_PWR_DEF */
@@ -552,49 +598,6 @@ void check_camera_presence(void)
 		// (enhanced VTR powersave is lost, but the whole system still functions)
 		u8_state |= STATE_ADC_FAIL;
 	}
-}
-
-//-------------------------------------- Process timeouts.
-static inline void delay_management(void)
-{
-	// Count down every 2 ms.
-	if(u8_start_dly!=0) u8_start_dly--;
-	if(u8_vid_dir_dly!=0) u8_vid_dir_dly--;
-	if(u8_rec_trg_dly!=0) u8_rec_trg_dly--;
-	if(u8_rr_dly!=0) u8_rr_dly--;
-#ifdef EN_SERIAL
-	// Serial command timeout.
-	if(u8_ser_cmd_dly!=0)
-	{
-		u8_ser_cmd_dly--;
-	}
-	else
-	{
-		// Expire command, go idle.
-		u8_ser_cmd = SCMD_STOP;
-	}
-	// Serial link watchdog.
-	if(u8_ser_link_wd!=0)
-	{
-		u8_ser_link_wd--;
-	}
-	else
-	{
-		// No serial activity.
-		u8i_interrupts &= ~INTR_SERIAL;
-	}
-
-#endif	/* EN_SERIAL */
-}
-
-//-------------------------------------- Process standby timers.
-static inline void slow_state_timing(void)
-{
-	// Count down every 500 ms.
-	if(u8_rec_fade_dly!=0) u8_rec_fade_dly--;
-#ifdef EN_SERIAL
-	if(u8_ser_mode_dly!=0) u8_ser_mode_dly--;
-#endif	/* EN_SERIAL */
 }
 
 //-------------------------------------- Read all logic inputs.
@@ -678,7 +681,7 @@ static inline void read_inputs(void)
 			{
 				// Triggered record signal is not detected.
 				// (trigger is 200 ms negative pulse,
-				// normal human can not press record button twice that fast)
+				// normal human should not press record button twice that fast)
 				// Treat input signal as direct level control.
 				// Reset blinking delay.
 				u8_rec_fade_dly = TIME_REC_FADE;
@@ -693,9 +696,9 @@ static inline void read_inputs(void)
 					// Stop "record" period.
 					u8_state &= ~STATE_REC_LOCK;
 				}
-				// Check if camera power measurement can be trusted.
-				check_camera_presence();
 			}
+			// Check if camera power measurement can be trusted.
+			check_camera_presence();
 		}
 	}
 	if(CAM_RR_DOWN)
@@ -760,7 +763,7 @@ static inline void buffer_adc(void)
 {
 	// Update next values in history.
 	u8a_12v_hist[u8_adc_fill_ptr] = u8_adc_12v;
-	u8a_camv_hist[u8_adc_fill_ptr] = u8_adc_cam;
+	u8a_pwr_hist[u8_adc_fill_ptr] = u8_adc_pwr;
 	// Loop fill pointer.
 	u8_adc_fill_ptr++;
 	if(u8_adc_fill_ptr>=ADC_HIST_LEN)
@@ -773,7 +776,6 @@ static inline void buffer_adc(void)
 //-------------------------------------- Run time ~800 us @ 8 MHz.
 static inline void filter_adc_ph1(void)
 {
-	uint8_t sort_vals[ADC_HIST_LEN];
 	// Copy first array.
 	memcpy(sort_vals, u8a_12v_hist, ADC_HIST_LEN);
 	// Sort the data.
@@ -786,13 +788,12 @@ static inline void filter_adc_ph1(void)
 //-------------------------------------- Run time ~800 us @ 8 MHz.
 static inline void filter_adc_ph2(void)
 {
-	uint8_t sort_vals[ADC_HIST_LEN];
 	// Copy second array.
-	memcpy(sort_vals, u8a_camv_hist, ADC_HIST_LEN);
+	memcpy(sort_vals, u8a_pwr_hist, ADC_HIST_LEN);
 	// Sort the data.
 	sort_array(sort_vals);
 	// Pick center one (median filter).
-	u8_volt_cam = sort_vals[(ADC_HIST_LEN/2)];
+	u8_cam_pwr = sort_vals[(ADC_HIST_LEN/2)];
 }
 
 #ifdef EN_SERIAL
@@ -801,7 +802,7 @@ void load_serial_cmd(uint8_t new_cmd)
 {
 	// Buffer new command.
 	u8_ser_cmd = new_cmd;
-	// Reset timer for duration.
+	// Reset timer for command duration.
 	u8_ser_cmd_dly = TIME_CMD;
 }
 
@@ -815,7 +816,7 @@ static inline void go_to_prep_rec(void)
 }
 
 //-------------------------------------- Set serial link state to paused recording.
-static inline void go_to_rec_paused(void)
+void go_to_rec_paused(void)
 {
 	// Set maximum allowed time in pause.
 	u8_ser_mode_dly = TIME_REC_P_MAX;
@@ -833,7 +834,7 @@ void go_to_powersave(void)
 }
 
 //-------------------------------------- Set serial link state to switching to playback.
-static inline void go_to_switch_to_play(void)
+void go_to_switch_to_play(void)
 {
 	// Set maximum allowed time for mode transition.
 	u8_ser_mode_dly = TIME_SCMD_2REC;
@@ -844,6 +845,8 @@ static inline void go_to_switch_to_play(void)
 //-------------------------------------- Set serial link state to paused playback.
 static inline void go_to_play_pause(void)
 {
+	// Disable record lock to force review in reverse direction.
+	u8_state &= ~STATE_REC_LOCK;
 	// Set delay for holding in this mode.
 	u8_ser_mode_dly = TIME_SCMD_REV_I;
 	// Move to paused playback mode.
@@ -851,7 +854,7 @@ static inline void go_to_play_pause(void)
 }
 
 //-------------------------------------- Set serial link state to paused playback.
-static inline void go_to_play_pause_hold(void)
+void go_to_play_pause_hold(void)
 {
 	// Set delay for holding in this mode.
 	u8_ser_mode_dly = TIME_SCMD_REV_O;
@@ -860,8 +863,10 @@ static inline void go_to_play_pause_hold(void)
 }
 
 //-------------------------------------- Set serial link state to switching to record.
-static inline void go_to_switch_to_record(void)
+void go_to_switch_to_record(void)
 {
+	// Disable record lock to stay in paused record.
+	u8_state &= ~STATE_REC_LOCK;
 	// Set maximum allowed time for mode transition.
 	u8_ser_mode_dly = TIME_SCMD_2REC;
 	// Switching from playback to record.
@@ -877,10 +882,8 @@ void go_to_error(uint8_t err_code)
 	u8_ser_mode_dly = TIME_SCMD_ERR;
 	// Go to error mode.
 	u8_link_state = LST_ERROR;
-#ifndef MCU_LOW_ROM
 	// Save last error code.
 	u8_ser_error = err_code;
-#endif	/* MCU_LOW_ROM */
 }
 #endif	/* EN_SERIAL */
 
@@ -892,19 +895,26 @@ static inline void state_machine(void)
 	if((u8_state&STATE_SERIAL_DET)!=0)
 	{
 		// Serial link is present, operating in serial linked mode.
-		u8_state &= ~(STATE_LNK_REC_P|STATE_LNK_REC);
-		// Check if VTR is in paused recording (stable).
+		u8_state &= ~(STATE_LNK_REC_P|STATE_LNK_REC|STATE_LNK_REC_GEN);
+		// Check if VTR is strictly in paused recording (stable).
 		if(((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC_P)&&
 			((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_RECP))
 		{
 			u8_state |= STATE_LNK_REC_P;
 		}
-		// Check if VTR is recording (stable).
+		// Check if VTR is strictly in recording (stable).
 		if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_REC)||
 			((((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_REC))&&
 			(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_M_RUN))))
 		{
 			u8_state |= STATE_LNK_REC;
+		}
+		// Check if VTR is in any recording-related state.
+		if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
+			((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
+			((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+		{
+			u8_state |= STATE_LNK_REC_GEN;
 		}
 		// Check video direction managed by VTR.
 		if((u8_inputs&LINP_VTR_PB)!=0)
@@ -922,10 +932,12 @@ static inline void state_machine(void)
 		// Don't use wired standby control method.
 		// (it will work but it's not needed)
 		u8_outputs &= ~OUT_VTR_STBY;
+		
 		// Perform state machine stuff.
 		if(u8_link_state==LST_STOP)
 		{
 			// Should be in STOP now.
+			// Check if VTR reached mechanically stable STOP mode.
 			if((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_STOP)
 			{
 				// Put VTR in standby to preserve energy.
@@ -933,7 +945,7 @@ static inline void state_machine(void)
 			}
 			else
 			{
-				// Force VTR to STOP.
+				// Force VTR to go to STOP mode.
 				load_serial_cmd(SCMD_STOP);
 			}
 			// Check if state needs to be changed.
@@ -965,7 +977,7 @@ static inline void state_machine(void)
 			// Check if state needs to be changed.
 			// Check if VTR can record.
 			if(((u8_vtr_mode&STTR_HN_MASK)==STTR_HN_S_FAST)&&
-					((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_STOP))
+				((u8_vtr_mode&STTR_LN_MASK)==STTR_LN_STOP))
 			{
 				// No tape in VTR.
 				go_to_error(ERR_NO_TAPE);
@@ -1040,9 +1052,7 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			else if((u8_state&STATE_LNK_REC_GEN)!=0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1062,7 +1072,7 @@ static inline void state_machine(void)
 			else if((u8_inputs&LINP_CAM_RR)!=0)
 			{
 				// RR button pressed.
-				// Switch from record to playback.
+				// Switch from record to playback review.
 				go_to_switch_to_play();
 			}
 			else
@@ -1103,9 +1113,7 @@ static inline void state_machine(void)
 				go_to_powersave();
 			}
 			// Check mechanical mode.
-			else if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			else if((u8_state&STATE_LNK_REC_GEN)!=0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1156,9 +1164,7 @@ static inline void state_machine(void)
 			load_serial_cmd(SCMD_STBY);
 			// Check if state needs to be changed.
 			// Check mechanical mode.
-			if(((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_M_RUN)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_RECP)&&
-				((u8_vtr_mode&STTR_HN_MASK)!=STTR_HN_S_REC))
+			if((u8_state&STATE_LNK_REC_GEN)!=0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
@@ -1221,6 +1227,8 @@ static inline void state_machine(void)
 			if(u8_ser_mode_dly==0)
 			{
 				// Timer run out.
+				// Disable record lock to force review in reverse direction.
+				u8_state &= ~STATE_REC_LOCK;
 				// Finally, switch to reverse playback.
 				u8_link_state = LST_PB_REW;
 			}
@@ -1243,10 +1251,10 @@ static inline void state_machine(void)
 				// Enable pause for VTR and turn off tally light.
 				u8_outputs &= ~(OUT_VTR_RUN|OUT_CAM_LED);
 				// Blink tally light fast in preparation.
-				if((u8_tasks&TASK_FAST_BLINK)!=0)
+				/*if((u8_tasks&TASK_FAST_BLINK)!=0)
 				{
 					u8_outputs |= OUT_CAM_LED;
-				}
+				}*/
 			}
 		}
 		else if(u8_link_state==LST_PB_REW)
@@ -1256,12 +1264,51 @@ static inline void state_machine(void)
 			// Check if state needs to be changed.
 			// Check mechanical mode.
 			if(((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_PLAY_P)&&
+				((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_REVIEW)&&
+				((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_CUE))
+			{
+				// VTR dropped out from playback mode for some reason.
+				go_to_error(ERR_CTRL_FAIL);
+			}
+			// Check user input.
+			else if((u8_state&STATE_REC_LOCK)!=0)
+			{
+				// Record button triggered.
+				// Switch review direction.
+				u8_link_state = LST_PB_FWD;
+			}
+			else if((u8_inputs&LINP_CAM_RR)==0)
+			{
+				// RR button released.
+				// Switch from playback to record.
+				go_to_play_pause_hold();
+			}
+			else
+			{
+				// Enable pause for VTR and turn off tally light.
+				u8_outputs &= ~(OUT_VTR_RUN|OUT_CAM_LED);
+			}
+		}
+		else if(u8_link_state==LST_PB_FWD)
+		{
+			// Playback forward (picture search/record review).
+			load_serial_cmd(SCMD_CUE);
+			// Check if state needs to be changed.
+			// Check mechanical mode.
+			if(((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_PLAY_P)&&
+				((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_CUE)&&
 				((u8_vtr_mode&STTR_LN_MASK)!=STTR_LN_REVIEW))
 			{
 				// VTR dropped out from playback mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);
 			}
 			// Check user input.
+			else if((u8_state&STATE_REC_LOCK)==0)
+			{
+				// Record button triggered.
+				// Switch review direction.
+				u8_link_state = LST_PB_REW;
+			}
 			else if((u8_inputs&LINP_CAM_RR)==0)
 			{
 				// RR button released.
@@ -1291,6 +1338,8 @@ static inline void state_machine(void)
 			{
 				// User pressed button again, revert to backwards playback.
 				u8_link_state = LST_PB_REW;
+				// Disable record lock to stay in paused record.
+				u8_state &= ~STATE_REC_LOCK;
 			}
 			else
 			{
@@ -1324,6 +1373,8 @@ static inline void state_machine(void)
 			}
 			else
 			{
+				// Disable record lock to stay in paused record.
+				u8_state &= ~STATE_REC_LOCK;
 				// Enable pause for VTR and turn off tally light.
 				u8_outputs &= ~(OUT_VTR_RUN|OUT_CAM_LED);
 				// Blink tally light fast in preparation.
@@ -1350,9 +1401,7 @@ static inline void state_machine(void)
 				{
 					// Clear error to stop mode.
 					u8_link_state = LST_STOP;
-#ifndef MCU_LOW_ROM
 					u8_ser_error = ERR_ALL_OK;
-#endif	/* MCU_LOW_ROM */
 				}
 			}
 			else
@@ -1383,9 +1432,7 @@ static inline void state_machine(void)
 		if(u8_link_state!=LST_STOP)
 		{
 			// Reset out all serial link related variables.
-#ifndef MCU_LOW_ROM
 			u8_ser_error = ERR_LOST_LINK;
-#endif	/* MCU_LOW_ROM */
 			u8_link_state = LST_STOP;
 			u8_ser_mode_dly = 0;
 			u8_vtr_mode = 0;
@@ -1403,7 +1450,7 @@ static inline void state_machine(void)
 			u8_outputs &= ~(OUT_VTR_RUN|OUT_VTR_STBY);
 			// Switch video path from VTR to camera.
 			u8_outputs |= (OUT_RLY_ON|OUT_CAM_PB);
-			// (Attempt to) Clear record lock.
+			// Clear record lock.
 			u8_state &= ~STATE_REC_LOCK;
 		}
 		else
@@ -1528,16 +1575,11 @@ int main(void)
 	for(uint8_t idx=0;idx<ADC_HIST_LEN;idx++)
 	{
 		u8a_12v_hist[idx] = 0;
-		u8a_camv_hist[idx] = 0;
+		u8a_pwr_hist[idx] = 0;
 	}
 
 	// Let hardware stabilize before reading anything.
 	u8_start_dly = TIME_STARTUP;
-
-#ifdef EN_SERIAL
-	// Load stop command to be recognized by the VTR.
-	//load_serial_cmd(SCMD_STOP);
-#endif	/* EN_SERIAL */
 
 	// Main cycle.
     while (1)
@@ -1546,8 +1588,8 @@ int main(void)
 		cli();
 		// Buffer all interrupts.
 		u8_buf_interrupts |= u8i_interrupts;
-		// Clear all interrupt flags (don't clear serial link presence flag).
-		u8i_interrupts &= INTR_SERIAL;
+		// Clear interrupt flags.
+		u8i_interrupts &= (INTR_SERIAL|INTR_ADC_CH1|INTR_ADC_CH2);
 		// Enable interrupts globally.
 		sei();
 
@@ -1559,6 +1601,7 @@ int main(void)
 			u8_buf_interrupts &= ~INTR_SERIAL;
 			u8_state |= STATE_SERIAL_DET;
 		}
+		// Check for finished serial transmittion.
 		if((u8_buf_interrupts&INTR_RX)!=0)
 		{
 			// Packet of data received from NV-180 VTR.
@@ -1568,32 +1611,33 @@ int main(void)
 			// Get battery charge information from VTR.
 			if((u8a_ser_data[SER_VTR2CAM_DISP_OFS]&SDISP_BATT_MASK)==SDISP_BATT)
 			{
+				// [SER_VTR2CAM_CNT1_OFS] and [SER_VTR2CAM_CNT2_OFS] should contain battery data.
 				if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_0P)
 				{
 					// Battery is drained, VTR is about to shut off.
 					u8_vtr_batt = VTR_BATT_0;
 				}
-				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_100P)
+				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_25P)
 				{
-					// Battery at 75...100% of charge.
-					u8_vtr_batt = VTR_BATT_100;
+					// Battery at 0...25% of charge.
+					u8_vtr_batt = VTR_BATT_25;
 				}
-				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_75P1)
+				else if(u8a_ser_data[SER_VTR2CAM_CNT1_OFS]==SBATT_50P1)
 				{
-					if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_75P2)
-					{
-						// Battery at 50...75% of charge.
-						u8_vtr_batt = VTR_BATT_75;
-					}
-					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_50P)
+					if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_50P2)
 					{
 						// Battery at 25...50% of charge.
 						u8_vtr_batt = VTR_BATT_50;
 					}
-					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_25P)
+					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_75P)
 					{
-						// Battery at 0...25% of charge.
-						u8_vtr_batt = VTR_BATT_25;
+						// Battery at 50...75% of charge.
+						u8_vtr_batt = VTR_BATT_75;
+					}
+					else if(u8a_ser_data[SER_VTR2CAM_CNT2_OFS]==SBATT_100P)
+					{
+						// Battery at 75...100% of charge.
+						u8_vtr_batt = VTR_BATT_100;
 					}
 				}
 			}
@@ -1611,16 +1655,17 @@ int main(void)
 			// Start ADC conversion.
 			ADC_START;
 
-#ifndef MCU_LOW_ROM
 			//DBG_PWM = u8_adc_12v;
-			DBG_PWM = u8_adc_cam;
-			//DBG_PWM = u8_cam_pwr;
+			//DBG_PWM = u8_adc_pwr;
+			DBG_PWM = u8_cam_pwr;
+			//DBG_PWM = u16_adc_12v;
+			//DBG_PWM = u16_adc_cam;
 
 #ifdef EN_SERIAL
 			// Check if serial link is established.
 			if((u8_state&STATE_SERIAL_DET)==0)
 			{
-				// No serial link, operating in "dumb" mode.
+				// No serial link, operating in "dumb"/"direct" mode.
 				// Check pause output state.
 				if((u8_outputs&OUT_VTR_RUN)!=0)
 				{
@@ -1655,6 +1700,8 @@ int main(void)
 				DBG_RECERR_OFF;
 			}
 #else
+			// Serial link operations disabled in firmware.
+			// Check pause output state.
 			if((u8_outputs&OUT_VTR_RUN)!=0)
 			{
 				DBG_RECERR_ON;
@@ -1664,7 +1711,6 @@ int main(void)
 				DBG_RECERR_OFF;
 			}
 #endif	/* EN_SERIAL */
-#endif	/* MCU_LOW_ROM */
 
 			//if((u8_outputs&OUT_VTR_RUN)==0)
 			//if(u8_rec_trg_dly!=0)
@@ -1694,13 +1740,11 @@ int main(void)
 			{
 				u8_tasks&=~TASK_2HZ;
 				// 2 Hz event, 500 ms period.
-#ifndef MCU_LOW_ROM
 				if((u8_state&STATE_SERIAL_DET)==0)
 				{
 					// Slow heartbeat: FW alive, but no serial link.
 					DBG_HRBT_TGL;
 				}
-#endif	/* MCU_LOW_ROM */
 				// Reset watchdog timer.
 				wdt_reset();
 				// Manage timing of certain states.
@@ -1710,13 +1754,11 @@ int main(void)
 			{
 				u8_tasks&=~TASK_5HZ_PH1;
 				// 5 Hz event (phase 1), 200 ms period.
-#ifndef MCU_LOW_ROM
 				if((u8_state&STATE_SERIAL_DET)!=0)
 				{
 					// Fast heartbeat: FW alive, serial link is OK.
 					DBG_HRBT_TGL;
 				}
-#endif	/* MCU_LOW_ROM */
 				// Filter ADC data from 12 V input channel.
 				filter_adc_ph1();
 			}
@@ -1726,8 +1768,8 @@ int main(void)
 				// 5 Hz event (phase 2), 200 ms period.
 				// Filter ADC data from camera power channel.
 				filter_adc_ph2();
-				// Check state of incoming power.
-				input_power_check();
+				// Check state of incoming voltage.
+				input_voltage_check();
 				// Calculate camera power consumption.
 				camera_power_check();
 			}

@@ -44,7 +44,7 @@ Why not just use CMA-1010?
 
 It's quite hard to find, it's pretty big, it has thick and stiff cable and does not support all features of Sony Beta cameras and features of serial link control for Panasonic NV-180.
 
-Most of all CMA-1010 can not monitor if record process on a VTR has started and just lights up tally light in sync with button press on the camera, which causes false recording indication and loss of footage.
+Most of all CMA-1010 can not monitor if record process on a VTR has started and just lights up tally light in sync with button press on the camera, which causes false recording indication and loss of footage. Also low battery indication function is not available. And Rec Review function is unavailable.
 
 ## Features
 
@@ -53,9 +53,9 @@ Most of all CMA-1010 can not monitor if record process on a VTR has started and 
 - Allows video from a VTR to be displayed in a camera's viewfinder when VTR is in playback mode
 - Works both with PAL and NTSC VTRs and cameras
 - Converts level and pulse pause commands from a camera to level "unpause" signal for a VTR (camera record button mode is auto-detected)
-- Allows "Record review" mode (via "RR" button) through backwards picture search
+- Allows "Record review" mode (via "RR" button) through picture search
 - Monitors VTR's state via serial link and indicates control errors via tally light blinking
-- Monitors input voltage and indicates low battery by blinking tally light in a camera
+- Monitors supply voltage and indicates low battery by blinking tally light in a camera
 - Monitors camera's power consumption and puts VTR in pause and stand by to preserve energy when camera is turned off
 - Allows powering camera without VTR from USB-C PD/QC source (12V input)
 - Outputs video and audio through 2xRCA if not connected to a VTR through 10-pin EIAJ connector
@@ -64,14 +64,14 @@ Most of all CMA-1010 can not monitor if record process on a VTR has started and 
 
 Adapter utilizes **Atmel AVR** MCU for logic, serial link and voltage measurement. Firmware project is done in **AtmelStudio 7**.
 
-Target MCU is **ATmega 88** (either variant). But firmware should be compilable and working on **ATmega 48/88/168/328** variants as well. **ATmega 48** firmware has some limitations due to low ROM capacity.
+Target MCU is **ATmega 88** (either variant). But firmware should be compilable and working on **ATmega 168/328** variants as well. **ATmega 48** is not supported due to low ROM capacity.
 
 MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing.
 
-Due to dependance on ADC measurements and proper serial connection with VTR MCU should run on voltages from **4.5 V** to **5.0 V**.
+Due to dependance on ADC measurements and proper serial connection with VTR MCU should run on voltages from **4.5 V** to **5.0 V**. Thus BOD (Brown-out Detector) is enabled by MCU fuses.
 
 <details>
-<summary>AVR fuses for ATmega48/ATmega88/ATmega168 with 8 MHz Xtal</summary>
+<summary>AVR fuses for ATmega88/ATmega168 with 8 MHz Xtal</summary>
 
 - **SUT1** = 0
 - **CKSEL3** = 0
@@ -146,7 +146,7 @@ Case cover is assembled by soldering top and side parts together at the 90 degre
 Bottom PCB has to be put last and soldered on its perimeter to the case.
 
 <details>
-<summary>Pinout for ATmega 48/88/168/328 MCU in SMD packages</summary>
+<summary>Pinout for ATmega 88/168/328 MCU in SMD packages</summary>
 
 Power supply:
 - **pin 4** *(VCC)*: +5 V supply
@@ -181,9 +181,9 @@ Relay control:
 - **pin 13** *(PB1)*: (output) video ***direction switch*** control
 
 Debug signals:
-- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (not available for ATmega48)
-- **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator (not available for ATmega48)
-- **pin 14** *(PB2)*: (output) camera ***power consumption PWM*** (not available for ATmega48)
+- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code
+- **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator
+- **pin 14** *(PB2)*: (output) camera ***power consumption PWM***
 
 </details>
 
@@ -200,7 +200,7 @@ Usual record button modes:
 
 ### Serial link mode
 
-After connecting adapter to supported VTR (NV-180 or other from "Supported VTRs" list) and to Beta camera and powering on the VTR adapter establishes serial link with the VTR and is held in "**idle**" mode.
+After connecting adapter to supported VTR (NV-180 or other from "Supported VTRs" list), to Beta camera and powering on the VTR adapter establishes serial link with the VTR and is held in "**idle**" mode.
 
 ```mermaid
 flowchart LR;
@@ -228,23 +228,23 @@ If record button is pressed while adapter is in "**recording**" mode, adapter re
 
 If camera is switched into "*power save*" mode or gets disconnected, the adapter goes into "**power save pause**" mode. The same happens if "**paused recording**" mode was held for more than 2 minutes. In this mode VTR keeps tape loaded in but stops the drum and deactivates most of the circuits, dropping power consumption five-fold.
 
-When in "**paused recording**" or "**power save pause**" modes "*RR*" button can be pressed and held on the camera (if it's present). That puts adapter into "**record review**" mode when the VTR switches to playback in reverse and displays what was just recorded in camera's viewfinder. As soon as "*RR*" button gets released, adapter returns into "**paused recording**" mode and the VTR is once again put into "*record + pause*" from current place on the tape. While VTR switches from recording to playback and vice versa the tally light on the camera blinks fast.
+When in "**paused recording**" or "**power save pause**" modes "*RR*" button can be pressed and held on the camera (if it's present). That puts adapter into "**record review**" mode when the VTR switches to playback in reverse and displays what was just recorded in camera's viewfinder. If record button is pressed while "*RR*" button is held, playback direction is reversed. As soon as "*RR*" button gets released adapter goes into short "**pause**" and then returns into "**paused recording**" mode putting the VTR once again into "*record + pause*" from current place on the tape. While VTR switches from recording to playback and vice versa the tally light on the camera blinks fast.
 
-If any abnormal situation occurs, the adapter senses it and falls back into "**error**" mode which is indicated by slow blinking of the tally light on the camera. VTR should unload the tape and stop. "**Error**" mode can be cleared by single press of the record button on the camera.
+If any abnormal situation occurs, the adapter senses that and falls into "**error**" mode which is indicated by slow blinking of the tally light on the camera. VTR should unload the tape and stop. "**Error**" mode can be cleared by single press of the record button on the camera.
 
 Examples of the sources of the error:
-- Trying to start recording without a tape in the VTR
-- Trying to record on a write-protected tape
-- "**Camera**" switch was moved from "***Remote***" position and adapter lost control over the VTR
-- VTR or tape malfunction
+- Trying to start recording without a tape in the VTR (*error code 1*)
+- Trying to record on a write-protected tape (*error code 2*)
+- VTR or tape malfunction (*error code 3*)
+- "**Camera**" switch was moved from "***Remote***" position and adapter lost control over the VTR (*error code 4*)
 
 If battery level gets too low, adapter makes a short blink of the tally light once a second.
 
 ### Direct mode
 
-If the VTR does not have a serial link (or the link has failed for any reason) adapter senses it and falls back into "direct" control mode. In this mode adapter operates more or less like **CMA-1010**.
+If the VTR does not have a serial link (or the link has failed for any reason) adapter senses that and falls back into "direct" control mode. In this mode adapter operates more or less like **CMA-1010**.
 
-The only control mechanism in this mode is "pause" wire in the 10-pin connector (pin 6) with no feedback from a VTR to a camera. No monitoring of the VTR state is available in this mode.
+The only control mechanism in this mode is "pause" wire in the 10-pin connector (pin 6) with no feedback from a VTR to a camera. No monitoring of the VTR state and no direct control of VTR mode is available in this mode.
 
 With every press of record button on the camera adapter will toggle "pause" signal to the VTR and tally light on the camera. If VTR was in "**paused recording**" mode it will go into "**recording**" mode, if VTR was in "**recording**" mode it will go into "**paused recording**" mode. If there was no tape in the VTR or recording mode was not armed probably nothing will happen on the VTR side (while tally light could still light up) leading to loss of video material.
 

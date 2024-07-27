@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 drv_io.h
 
-Copyright � 2024 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define VTR_SDAT_SET0	(VTR_SER_PORT&=~VTR_SDAT_BIT)
 #define VTR_SDAT_SET1	(VTR_SER_PORT|=VTR_SDAT_BIT)
 #define VTR_SER_CONFIG1	(PCICR|=(1<<PCIE2))
-#define VTR_SER_CONFIG2	(PCMSK2|=(1<<PCINT23))
+#define VTR_SER_CONFIG2	(PCMSK2|=(1<<PCINT23))			// Pin change int on data clock
 // Video signal direction input from 10-pin VTR connector.
 #define VTR_VID_PORT	PORTB
 #define VTR_VID_DIR		DDRB
@@ -111,7 +111,6 @@ Supported MCUs:	ATmega48(-/A/P/AP), ATmega88(-/A/P/AP), ATmega168(-/A/P/AP), ATm
 #define CAM_LED_PIN		(1<<0)							// Linked with Beta K-type pin 6
 #define CAM_LED_ON		(CAM_LED_PORT|=CAM_LED_PIN)
 #define CAM_LED_OFF		(CAM_LED_PORT&=~CAM_LED_PIN)
-#define CAM_LED_TGL		(CAM_LED_PORT^=CAM_LED_PIN)
 // Camera video selector output.
 #define CAM_VID_PORT	PORTD
 #define CAM_VID_DIR		DDRD
@@ -251,14 +250,14 @@ inline void HW_init(void)
 	DBG_PORT &= ~(DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 	DBG_DIR |= (DBG_1_PIN|DBG_2_PIN|DBG_3_PIN);
 
-#ifndef MCU_LOW_ROM
 	// Debug PWM.
 	DBG_PORT &= ~DBG_4_PIN;		DBG_DIR |= DBG_4_PIN;				// OC1B output
 	TCNT1 = 0;
 	OCR1B = 0;
 	TCCR1A = (1<<COM1B1)|(1<<WGM10);								// Fast non-inverting 8-bit PWM
 	TCCR1B = (1<<WGM12)|(0<<CS12)|(0<<CS11)|(1<<CS10);				// Start timer with clk/1 clock (8 MHz), 31.25 kHz cycle
-#endif	/* MCU_LOW_ROM */
+	//TCCR1A = (1<<COM1B1)|(1<<WGM11)|(1<<WGM10);						// Fast non-inverting 10-bit PWM
+	//TCCR1B = (1<<WGM12)|(0<<CS12)|(0<<CS11)|(1<<CS10);				// Start timer with clk/1 clock (8 MHz), 31.25 kHz cycle
 
 	// Turn off unused modules for power saving.
 	PWR_COMP_OFF;
