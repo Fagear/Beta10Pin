@@ -38,6 +38,7 @@ uint8_t u8_vtr_mode=0;						// Logic and mechanical mode of VTR, received throug
 uint8_t u8_vtr_batt=VTR_BATT_100;			// Battery state of the VTR, received through serial link
 uint8_t u8_ser_cmd_dly=0;					// Duration for sending new command to the VTR
 uint8_t u8_ser_mode_dly=0;					// Timer for serial link modes
+uint8_t u8_ser_stb_lock=CAM_PWR_CHECK;		// Lock for power saving in paused recording
 uint8_t u8_ser_link_wd=0;					// Watchdog timer for serial link communication
 #endif	/* EN_SERIAL */
 
@@ -177,7 +178,7 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v1.2";				// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v1.3";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
@@ -822,6 +823,8 @@ void go_to_rec_paused(void)
 	u8_ser_mode_dly = TIME_REC_P_MAX;
 	// Move to paused recording mode.
 	u8_link_state = LST_REC_PAUSE;
+	// Postpone low batt blink.
+	u8_rec_fade_dly = TIME_REC_FADE;
 }
 
 //-------------------------------------- Set serial link state to powersaved paused recording.
@@ -1049,6 +1052,7 @@ static inline void state_machine(void)
 			if((u8_state&STATE_CAM_OFF)!=0)
 			{
 				// No camera.
+				u8_ser_stb_lock = CAM_PWR_CHECK;
 				go_to_powersave();
 			}
 			// Check mechanical mode.
@@ -1061,6 +1065,7 @@ static inline void state_machine(void)
 			else if(u8_ser_mode_dly==0)
 			{
 				// Pause is too long, tape is wearing out, battery is draining.
+				u8_ser_stb_lock = CAM_PWR_IGNORE;
 				go_to_powersave();
 			}
 			// Check user input.
@@ -1110,6 +1115,7 @@ static inline void state_machine(void)
 			if((u8_state&STATE_CAM_OFF)!=0)
 			{
 				// No camera.
+				u8_ser_stb_lock = CAM_PWR_CHECK;
 				go_to_powersave();
 			}
 			// Check mechanical mode.
@@ -1163,8 +1169,26 @@ static inline void state_machine(void)
 			// Put VTR in standby.
 			load_serial_cmd(SCMD_STBY);
 			// Check if state needs to be changed.
+			// Check if camera check should be ignored.
+			if(u8_ser_stb_lock!=CAM_PWR_CHECK)
+			{
+				// Check if camera is present.
+				if((u8_state&STATE_CAM_OFF)!=0)
+				{
+					// Camera became turned off.
+					// Clear lock.
+					u8_ser_stb_lock = CAM_PWR_CHECK;
+				}
+			}
+			// Check if camera is present.
+			if(((u8_state&STATE_CAM_OFF)==0)&&(u8_ser_stb_lock==CAM_PWR_CHECK))
+			{
+				// Exit lock is cleared.
+				// Camera is turned on now, prepare VTR for recording.
+				go_to_rec_paused();
+			}
 			// Check mechanical mode.
-			if((u8_state&STATE_LNK_REC_GEN)!=0)
+			else if((u8_state&STATE_LNK_REC_GEN)!=0)
 			{
 				// VTR dropped out from recording mode for some reason.
 				go_to_error(ERR_CTRL_FAIL);

@@ -244,6 +244,13 @@ enum
 	VTR_BATT_100	= 100,			// 75...100% battery level
 };
 
+// Lock states for [u8_ser_stb_lock].
+enum
+{
+	CAM_PWR_CHECK	= 0,
+	CAM_PWR_IGNORE	= 1,
+};
+
 void check_camera_presence(void);
 void sort_array(uint8_t *arr_ptr);
 void load_serial_cmd(uint8_t new_cmd);
