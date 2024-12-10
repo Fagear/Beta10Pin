@@ -69,7 +69,7 @@ enum
 	VIN_OFF			= 19,			// Input voltage 9.9 V
 	V_DIFF_MAX		= 32,			// Maximum allowed difference in voltages (~1.5 A consumption)
 	VD_CAM_ON_UP	= 8,			// Voltage difference for detected camera ON (current shunt 0.47 Ohm)
-	VD_CAM_ON_DN	= 5,			// Voltage difference for detected camera OFF (current shunt 0.47 Ohm)
+	VD_CAM_ON_DN	= 6,			// Voltage difference for detected camera OFF (current shunt 0.47 Ohm)
 };
 
 // Length of the buffer for each ADC channel before filtering.

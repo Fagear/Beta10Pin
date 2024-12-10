@@ -178,7 +178,7 @@ const uint8_t ucaf_adc_to_byte[1024] PROGMEM =
 
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v1.3";				// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v1.4";				// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "Sony Beta camera 14-pin to 10-pin EIAJ adapter";	// Firmware description
@@ -472,7 +472,7 @@ static inline void delay_management(void)
 	if(u8_vid_dir_dly!=0) u8_vid_dir_dly--;
 	if(u8_rec_trg_dly!=0) u8_rec_trg_dly--;
 	if(u8_rr_dly!=0) u8_rr_dly--;
-	#ifdef EN_SERIAL
+#ifdef EN_SERIAL
 	// Serial command timeout.
 	if(u8_ser_cmd_dly!=0)
 	{
@@ -493,8 +493,7 @@ static inline void delay_management(void)
 		// No serial activity.
 		u8i_interrupts &= ~INTR_SERIAL;
 	}
-
-	#endif	/* EN_SERIAL */
+#endif	/* EN_SERIAL */
 }
 
 //-------------------------------------- Process slow delays.
@@ -502,9 +501,9 @@ static inline void slow_state_timing(void)
 {
 	// Count down every 500 ms.
 	if(u8_rec_fade_dly!=0) u8_rec_fade_dly--;
-	#ifdef EN_SERIAL
+#ifdef EN_SERIAL
 	if(u8_ser_mode_dly!=0) u8_ser_mode_dly--;
-	#endif	/* EN_SERIAL */
+#endif	/* EN_SERIAL */
 }
 
 //-------------------------------------- Check state of input power supply.
@@ -1781,7 +1780,7 @@ int main(void)
 				if((u8_state&STATE_SERIAL_DET)!=0)
 				{
 					// Fast heartbeat: FW alive, serial link is OK.
-					DBG_HRBT_TGL;
+					DBG_HRBT_ON;
 				}
 				// Filter ADC data from 12 V input channel.
 				filter_adc_ph1();
@@ -1790,6 +1789,11 @@ int main(void)
 			{
 				u8_tasks&=~TASK_5HZ_PH2;
 				// 5 Hz event (phase 2), 200 ms period.
+				if((u8_state&STATE_SERIAL_DET)!=0)
+				{
+					// Fast heartbeat: FW alive, serial link is OK.
+					DBG_HRBT_OFF;
+				}
 				// Filter ADC data from camera power channel.
 				filter_adc_ph2();
 				// Check state of incoming voltage.
