@@ -1,5 +1,5 @@
 [![en](https://img.shields.io/badge/lang-en-red.svg)](README.md)
-[![ru](https://img.shields.io/badge/lang-en-green.svg)](README.ru.md)
+[![ru](https://img.shields.io/badge/lang-ru-green.svg)](README.ru.md)
 
 # Beta10Pin
 
@@ -271,7 +271,7 @@ flowchart LR;
     idIdle(Простой)-- первое нажатие кнопки паузы -->idPause(Пауза записи);
     idPause-- кнопка паузы -->idRec(Запись);
     idRec-- кнопка паузы -->idPause;
-    idPwrsv(Пауза с энергосбережением)-- кнопка паузы -->idRec;
+    idPwrsv(Пауза+энергосбережение)-- кнопка паузы -->idRec;
     idPause-- 2 минуты паузы -->idPwrsv;
     idPause & idRec-- камера отключена -->idPwrsv;
     idPwrsv-- камера включена -->idPause;
