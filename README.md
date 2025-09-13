@@ -1,3 +1,6 @@
+[![en](https://img.shields.io/badge/lang-en-red.svg)](README.md)
+[![ru](https://img.shields.io/badge/lang-en-green.svg)](README.ru.md)
+
 # Beta10Pin
 
 ## What is this?
@@ -20,6 +23,7 @@ The main target VTR is **Panasonic/National NV-180** which has a small footprint
 
 - **Bauer/Bosch VRP 30** (rebranded NV-180)
 - **Blaupunkt RTX-260** (rebranded NV-180)
+- **Canon VR-L50** (rebranded NV-180)
 - **Canon VR-30** (rebranded PV-8000)
 - **Canon VR-40** (rebranded PV-9000)
 - **Curtis-Mathes KV-773** (rebranded PV-9000)
@@ -171,9 +175,12 @@ Relay control:
 - **pin 13** *(PB1)*: (output) video ***direction switch*** control
 
 Debug signals:
-- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code
+- **pin 17** *(PB5)*: (output) ***record*** active (solid)/***error*** code (blinking)
 - **pin 16** *(PB4)*: (output) FW ***heartbeat*** indicator
 - **pin 14** *(PB2)*: (output) ***camera presence***
+
+![EIAJ connector pinout](progress/NV-180_10P_pinout.png)
+ ![Beta connector pinout](progress/Sony_14P_pinout.png)
 
 </details>
 
@@ -181,31 +188,46 @@ Debug signals:
 
 14-pin Beta connector should be put through the front PCB before soldering to the main PCB. Front PCB should be screwed to the 14-pin Beta connector through soldered M2.5 nuts.
 
+![Beta camera connector](progress/Beta_conn_1.jpg) ![Beta camera connector](progress/Beta_conn_2.jpg)
+
+![Front board assembly](progress/Beta_conn_3.jpg) ![Front board assembly](progress/Beta_conn_4.jpg)
+
 VTR cable (with a 10-pin connector) should be routed through the back PCB before connecting to the main PCB. Back PCB should be screwed to the RCA connector block.
 
+![Back board assembly](progress/back_board_1.jpg)
+
 14-pin Beta camera connector, 2xRCA connector and USB-C PD/QC trigger are soldered onto the main PCB. VTR cable's individual wires are connected to the main PCB through connectors.
+
+![Main board assembly](progress/main_board.jpg)
+
+![Main board assembly](progress/back_board_2.jpg)
 
 Case cover is assembled by soldering top and side parts together at the 90 degree angles. After that assembled cover should be slid onto the main PCB from the top and soldered in all corners to the front and back PCBs. When front and back PCBs are secured, main PCB should be soldered to the side PCB on a single joint on the bottom.
 
 Bottom PCB has to be put last and soldered on its perimeter to the case PCBs.
 
+![Assembled adapter](progress/assembled_1.jpg)
+
+![Assembled adapter](progress/assembled_2.jpg)
+
 Main PCB provides AVR ISP header for uploading and updating firmware. In normal use the same connector is used to connect "*Heartbeat*" and "*Record/Error*" LEDs on the case.
 
+![LED indicators](progress/indicators.jpg)
 
 ## Usage
 
 ### General operation
 
-Controller can operate in two modes: "serial link mode" and "direct mode". The mode is determined by what and when adapter is connected to. "Serial link mode" requires **Beta10Pin** to be connected to **NV-180** (or compatible, see list above) VTR with serial bus for monitoring and enhanced control. Adapter should be connected before VTR is turned on, otherwise VTR will disable serial link till next power up and the adapter will be operating in "direct mode".
+Adapter can operate in one of two modes: "*serial link mode*" and "*direct mode*". The mode is determined by what and when adapter is connected to. "Serial link mode" requires **Beta10Pin** to be connected to **NV-180** (or compatible, see list above) VTR with serial bus for monitoring and enhanced control. Adapter should be connected before VTR is turned on, otherwise VTR will disable serial link till next power up and the adapter will be operating in "direct mode".
 
 Each operating mode is explained in details below.
 
 **Beta10Pin** adapter has three camera-related controls:
-- record/pause button
+- record pause button
 - Rec Review (RR) button
 - camera's power consumption
 
-Main control input is the record/pause button on the camera. It pauses/unpauses recording, arms the controller and the VTR (in "serial link mode"), clears an error state (in "serial link mode"). Camera also can have "Rec Review" ("RR") button that operates only in "serial link mode". The third input is camera's power consumption from which **Beta10Pin** adapter determines if camera is connected/powered on and if power saving should be activated.
+Main control input is the record pause button on the camera. It pauses/unpauses recording, arms the controller and the VTR (in "serial link mode"), clears an error state (in "serial link mode"). Camera also can have "Rec Review" ("RR") button that operates only in "serial link mode". The third input is camera's power consumption from which **Beta10Pin** adapter determines if camera is connected/powered on and if power saving should be activated.
 
 **Beta10Pin** adapter has three visual indicators:
 - tally light on the camera
@@ -220,7 +242,7 @@ Tally light can indicate:
 
 "Record/Error" LED can indicate:
 - active unpaused recording (solid light)
-- loop of short blinks according to the error code (error state, only in "serial link mode")
+- error state (loop of short blinks according to the error code, only in "serial link mode")
 
 "Heartbeat" LED can indicate:
 - firmware is alive, operating in "serial link mode" (fast continuous blinking, 5 Hz)
@@ -230,14 +252,14 @@ Controls and indicators are explained in more details below.
 
 ### Camera record trigger
 
-Cameras can have different "trigger modes" for the record button that usually can be selected with a switch at the bottom of the camera.
+Cameras can have different "trigger modes" for the pause button that usually can be selected with a switch at the bottom of the camera.
 
-Usual record button modes:
+Usual pause button modes:
 - default at "low", toggling state with each button press
 - default at "high", toggling state with each button press
 - default at "high", producing ~200 ms negative pulse with each button press
 
-**CMA-1010** adapter only supports two trigger modes and for selecting between those you have to open up its case and move a physical switch inside. **Beta10Pin** auto-detects trigger mode of the camera and responds on every record button press on the camera correctly.
+**CMA-1010** adapter only supports two trigger modes and for selecting between those you have to open up its case and move a physical switch inside. **Beta10Pin** auto-detects trigger mode of the camera and responds on every button press on the camera correctly.
 
 ### Serial link mode
 
@@ -245,33 +267,34 @@ After connecting adapter to supported VTR (NV-180 or other from "Supported VTRs"
 
 ```mermaid
 flowchart LR;
-    idIdle(Idle)-- first press of record button -->idPause(Paused recording);
-    idPause-- record button -->idRec(Recording);
-    idRec-- record button -->idPause;
-    idPwrsv-- record button -->idRec;
-    idPause-- 2 minutes of pause -->idPwrsv(Power save pause);
+    idIdle(Idle)-- first press of pause button -->idPause(Paused recording);
+    idPause-- pause button -->idRec(Recording);
+    idRec-- pause button -->idPause;
+    idPwrsv(Power save pause)-- pause button -->idRec;
+    idPause-- 2 minutes of pause -->idPwrsv;
     idPause & idRec-- camera turned off -->idPwrsv;
+    idPwrsv-- camera turned on -->idPause;
     idPause & idPwrsv-- RR button pressed -->idRR(Record review);
     idRR-- RR button released -->idPause;
     idPause & idRec & idPwrsv & idRR-- error event -->idErr(Error);
-    idErr-- record button -->idIdle;
+    idErr-- pause button -->idIdle;
 ```
 
 When "**Camera**" switch on the front of the VTR is set to "***Normal***" position VTR is controlled by its front panel and camera adapter has no effect and is ignored. User should eject the loading tray, put a recordable VHS cassette inside and close the tray.
 
 Next, "**Camera**" switch on the VTR should be moved into "***Remote***" position to allow the **Beta10Pin** adapter to take control.
 
-First press of the record/pause button on the camera arms the adapter, that commands to set "*record + pause*" mode to the VTR. At the same time tally light on the camera blinks fast and VTR spins up its head drum and loads the tape inside. When VTR gets ready tally light goes out and adapter settles in "**paused recording**" state, recording does not start yet.
+First press of the pause button on the camera arms the adapter, that commands to set "*record + pause*" mode to the VTR. At the same time tally light on the camera blinks fast and VTR spins up its head drum and loads the tape inside. When VTR gets ready tally light goes out and adapter settles in "**paused recording**" state, recording does not start yet.
 
-"**Paused recording**" is the main state of the adapter, ready to begin recording process. User can frame a shot using viewfinder of the camera and arm camera's "*Fader*" function if necessary. When record button is pressed in this state the adapter goes into "**recording**" state and commands the VTR to clear pause and start recording process. Tally light should light up and stay solid.
+"**Paused recording**" is the main state of the adapter, ready to begin recording process. User is free to frame a shot using viewfinder and arm camera's special effects if necessary. When pause button is pressed in this state the adapter goes into "**recording**" state and commands the VTR to clear pause and start recording process. Tally light should light up and stay solid.
 
-If record button is pressed while adapter is in "**recording**" state, adapter returns back to "**paused recording**" state, sets "record + pause" for the VTR and turns off camera's tally light.
+If pause button is pressed while adapter is in "**recording**" state, adapter returns back to "**paused recording**" state, sets "record + pause" for the VTR and turns off camera's tally light.
 
-If camera is switched into "*power save*" or gets disconnected, the adapter goes into "**power save pause**" state. The same happens if "**paused recording**" state was held for more than 2 minutes. In this state VTR keeps tape loaded in but stops the drum and deactivates most of the circuits, dropping power consumption five-fold.
+If camera is switched into "*power save*" or gets disconnected, the adapter goes into "**power save pause**" state. The same happens if "**paused recording**" state was held for more than 2 minutes. In "**power save pause**" state NV-180 keeps tape loaded in but stops the drum and deactivates most of the circuits, dropping power consumption five-fold.
 
-While in "**paused recording**" or "**power save pause**" states "*RR*" button can be pressed and held on the camera (if it's present). That puts adapter into "**record review**" state when the VTR switches to playback in reverse and displays what was just recorded in camera's viewfinder. If record button is pressed while "*RR*" button is held, playback direction is reversed. As soon as "*RR*" button gets released adapter goes into short "**pause**" and then returns into "**paused recording**" state putting the VTR once again into "*record + pause*" from current place on the tape. While VTR switches from recording to playback and vice versa the tally light on the camera blinks fast.
+While in "**paused recording**" or "**power save pause**" states "*Rec Review (RR)*" button can be pressed and held on the camera (if it's present). That puts adapter into "**record review**" state when the VTR switches to playback in reverse and displays what was just recorded in camera's viewfinder. If pause button is pressed while "*Rec Review (RR)*" button is held, playback direction is reversed. As soon as "*Rec Review (RR)*" button gets released adapter goes into short "**pause**" and then returns into "**paused recording**" state putting the VTR once again into "*record + pause*" from current place on the tape. While VTR switches from recording to playback and vice versa the tally light on the camera blinks fast.
 
-If any abnormal situation occurs, the adapter senses that and falls into "**error**" state which is indicated by slow blinking of the tally light on the camera. VTR should unload the tape and stop. "**Error**" state can be cleared by single press of the record button on the camera.
+If any abnormal situation occurs, the adapter senses that and falls into "**error**" state which is indicated by slow blinking of the tally light on the camera. VTR should unload the tape and stop. "**Error**" state can be cleared by single press of the pause button on the camera. After error is cleared adapter returns to the start-up "**idle**" state.
 
 Examples of the sources of the error:
 - Trying to start recording without a tape in the VTR (*error code 1*)
@@ -279,23 +302,30 @@ Examples of the sources of the error:
 - VTR or tape malfunction (*error code 3*)
 - "**Camera**" switch was moved from "***Remote***" position and adapter lost control over the VTR (*error code 4*)
 
-"Record/Error" LED on the adapter's case will blink in cycle the same number of times as error code number is.
+In "**error**" state "Record/Error" LED on the adapter's case will blink in cycle the same number of times as error code number is.
 
 If battery level gets too low, adapter makes a short blink of the tally light once a second.
 
 ### Direct mode
 
-If the VTR does not have a serial link (or the link has failed for any reason) adapter senses that and falls back into "direct" control mode. In this mode **Beta10Pin** adapter operates more or less like **CMA-1010**.
+If the VTR does not have a serial link (or the link has failed for any reason) adapter senses that and falls back into "direct" control mode. In this mode **Beta10Pin** adapter operates more or less like **Sony CMA-1010**.
 
 The only control mechanism in this mode is "pause" wire in the 10-pin EIAJ connector (pin 6) with no feedback from a VTR to a camera. No monitoring of the VTR state and no direct control of VTR state is available in this mode.
 
-With every press of record button on the camera adapter will toggle "pause" signal to the VTR and tally light on the camera. If VTR was in "**paused recording**" state it will go into "**recording**" state, if VTR was in "**recording**" state it will go into "**paused recording**" state.
+```mermaid
+flowchart LR;
+    idPause(Paused recording)-- pause button -->idRec(Recording);
+    idRec-- pause button -->idPause;
+    idRec-- camera turned off -->idPause;
+```
 
-If there was no tape in the VTR or recording state was not armed probably nothing will happen on the VTR side (while tally light could still light up) leading to loss of video material.
+With every press of pause button on the camera adapter will toggle "pause" signal to the VTR and tally light on the camera. If VTR was in "**paused recording**" state it will go into "**recording**" state, if VTR was in "**recording**" state it will go into "**paused recording**" state.
 
-If adapter senses that VTR switched into playback state, firmware will toggle "**recording**" state to "**paused recording**" and turn off tally light.
+If there was no tape in the VTR or recording state was not armed by the user probably nothing will happen on the VTR side (while tally light on the camera will still light up) leading to loss of video material.
 
-"RR" button on the camera will have no effect on the VTR, no "**record review**" functionality is available in this mode.
+If adapter senses that VTR switched into playback state, firmware will toggle "**recording**" state to "**paused recording**" and turn off tally light on the camera.
+
+"*Rec Review (RR)*" button on the camera will have no effect on the VTR, no "**record review**" functionality is available in this mode.
 
 If camera is switched into "*power save*" or gets disconnected, the adapter goes into "**paused recording**" state and turns off tally light on the camera.
 
@@ -303,19 +333,20 @@ If battery level gets too low, adapter makes a short blink of the tally light on
 
 ## Current state
 
-- Working basic control (VTR controls video path relay, camera controls pause line to VTR)
-- Working voltage monitoring and indication in camera
-- Working camera connection detection and NV-180 standby function operation
-- Working serial link detection and RX/TX
-- Working state machine while communicating with NV-180 VTRs through serial link
-- Working "record review" processing
+These things work:
+- basic control (VTR controls video path relay, camera controls pause line to VTR)
+- voltage monitoring and indication in camera
+- camera connection detection and NV-180 standby function operation
+- serial link detection and RX/TX
+- state machine while communicating with NV-180 VTRs through serial link
+- "record review" processing
 
 ## Plans
 
-- Test adapter with other VTRs (without serial link and standby control)
+- test adapter with other VTRs (without serial link and standby control)
 
 ## License
-Program copyright 2024.
+Program copyright 2024-2025.
 
 This program is free software.
 Licensed under the Apache License, Version 2.0 (the "License");
